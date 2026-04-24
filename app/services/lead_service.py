@@ -34,8 +34,8 @@ class LeadService:
         query = select(Lead).where(Lead.branch_id == branch_id)
         if status:
             query = query.where(Lead.status == status)
-        result = await self.session.exec(query.offset(skip).limit(limit))
-        return result.all()
+        result = await self.session.execute(query.offset(skip).limit(limit))
+        return result.scalars().all()
 
     async def update_lead(self, lead_id: UUID, data: LeadUpdate) -> Optional[Lead]:
         lead = await self.get_lead(lead_id)

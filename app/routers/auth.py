@@ -8,7 +8,7 @@ from sqlmodel import select
 from app.core.exceptions import InvalidCredentialsException
 from app.core.security import create_access_token, hash_password
 from app.database import get_session
-from app.deps import get_current_user, get_current_user_claims
+from app.deps import get_current_user
 from app.models import RefreshToken, Staff, User
 from app.schemas.auth import LoginRequest, RefreshRequest, TokenResponse, UserProfileResponse
 from app.services.auth_service import AuthService
@@ -95,7 +95,6 @@ async def logout(
 
 @router.get("/me", response_model=UserProfileResponse)
 async def get_me(
-    claims: dict = Depends(get_current_user_claims),
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> UserProfileResponse:

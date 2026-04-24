@@ -44,8 +44,8 @@ async def list_plans(
         .offset(skip)
         .limit(limit)
     )
-    result = await session.exec(statement)
-    return result.all()
+    result = await session.execute(statement)
+    return result.scalars().all()
 
 
 @router.get("/{plan_id}", response_model=PlanResponse)

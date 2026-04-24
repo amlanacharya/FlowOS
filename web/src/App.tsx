@@ -14,13 +14,19 @@ import SettingsPage from './pages/SettingsPage'
 
 type Page = 'dashboard' | 'leads' | 'members' | 'payments' | 'settings'
 
+const DEFAULT_API_BASE_URL = 'http://127.0.0.1:8000'
+
 function read(key: string, fallback = '') {
   if (typeof window === 'undefined') return fallback
   return window.localStorage.getItem(key) ?? fallback
 }
 
+function normalizeApiBaseUrl(url: string) {
+  return url.trim() === 'http://localhost:8000' ? DEFAULT_API_BASE_URL : url
+}
+
 export default function App() {
-  const [apiBaseUrl, setApiBaseUrl] = useState(() => read('flowos-api-base', 'http://localhost:8000'))
+  const [apiBaseUrl, setApiBaseUrl] = useState(() => normalizeApiBaseUrl(read('flowos-api-base', DEFAULT_API_BASE_URL)))
   const [accessToken, setAccessToken] = useState(() => read('flowos-access-token'))
   const [refreshToken, setRefreshToken] = useState(() => read('flowos-refresh-token'))
   const [branchOverride, setBranchOverride] = useState(() => read('flowos-branch-override'))
@@ -86,7 +92,7 @@ export default function App() {
   }
 
   function handleApiBaseUrlChange(url: string) {
-    setApiBaseUrl(url)
+    setApiBaseUrl(normalizeApiBaseUrl(url))
   }
 
   // Show login if no token

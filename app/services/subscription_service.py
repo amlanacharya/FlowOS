@@ -59,8 +59,8 @@ class SubscriptionService:
         )
         if status:
             query = query.where(MemberSubscription.status == status)
-        result = await self.session.exec(query.offset(skip).limit(limit))
-        return result.all()
+        result = await self.session.execute(query.offset(skip).limit(limit))
+        return result.scalars().all()
 
     async def pause_subscription(
         self, sub_id: UUID, freeze_days: int = 30

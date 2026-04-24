@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react'
 import { apiFetch } from '../api'
 import type { DashboardSummary, DuesReport, LeadFunnel, RevenueBreakdown } from '../types'
-import { formatCurrency, formatDate, formatRole } from '../utils'
+import { formatCurrency, formatDate, formatRole, errorMessage } from '../utils'
 import { SkeletonKpiGrid } from '../components/Skeleton'
 import type { Notice } from '../components/NoticeStack'
-import { errorMessage } from '../utils'
 
 type Props = {
   apiBaseUrl: string
@@ -14,18 +13,27 @@ type Props = {
 }
 
 const defaultSummary: DashboardSummary = {
-  active_members: 0, total_revenue_mtd: 0, leads_this_week: 0,
-  trials_scheduled: 0, trials_converted: 0, renewals_due_7_days: 0,
-  collections_today: 0, outstanding_dues: 0, classes_today: 0,
-  class_fill_rate: 0, inactive_members: 0,
+  active_members: 0,
+  total_revenue_mtd: 0,
+  leads_this_week: 0,
+  trials_scheduled: 0,
+  trials_converted: 0,
+  renewals_due_7_days: 0,
+  collections_today: 0,
+  outstanding_dues: 0,
+  classes_today: 0,
+  class_fill_rate: 0,
+  inactive_members: 0,
 }
 
 const defaultFunnel: LeadFunnel = {
-  new: 0, contacted: 0, trial_scheduled: 0,
-  trial_attended: 0, converted: 0, lost: 0,
+  new: 0,
+  contacted: 0,
+  trial_scheduled: 0,
+  trial_attended: 0,
+  converted: 0,
+  lost: 0,
 }
-
-const funnelColors = ['#3b82f6','#f97316','#a855f7','#14b8a6','#22c55e','#ef4444']
 
 export default function DashboardPage({ apiBaseUrl, accessToken, branchId, pushNotice }: Props) {
   const [loading, setLoading] = useState(true)
@@ -42,71 +50,98 @@ export default function DashboardPage({ apiBaseUrl, accessToken, branchId, pushN
       apiFetch<LeadFunnel>(apiBaseUrl, '/api/v1/dashboard/lead-funnel', { token: accessToken, query }),
       apiFetch<RevenueBreakdown[]>(apiBaseUrl, '/api/v1/dashboard/revenue', { token: accessToken, query }),
       apiFetch<DuesReport[]>(apiBaseUrl, '/api/v1/dashboard/dues', { token: accessToken, query }),
-    ]).then(([s, f, r, d]) => {
-      if (s.status === 'fulfilled') setSummary(s.value)
-      if (f.status === 'fulfilled') setFunnel(f.value)
-      if (r.status === 'fulfilled') setRevenue(r.value)
-      if (d.status === 'fulfilled') setDues(d.value)
-      const firstFail = [s, f, r, d].find((x) => x.status === 'rejected')
-      if (firstFail?.status === 'rejected') {
-        pushNotice('info', 'Partial data', errorMessage(firstFail.reason))
+    ]).then(([summaryResult, funnelResult, revenueResult, duesResult]) => {
+      if (summaryResult.status === 'fulfilled') setSummary(summaryResult.value)
+      if (funnelResult.status === 'fulfilled') setFunnel(funnelResult.value)
+      if (revenueResult.status === 'fulfilled') setRevenue(revenueResult.value)
+      if (duesResult.status === 'fulfilled') setDues(duesResult.value)
+
+      const firstFailure = [summaryResult, funnelResult, revenueResult, duesResult].find((result) => result.status === 'rejected')
+      if (firstFailure?.status === 'rejected') {
+        pushNotice('info', 'Partial data loaded', errorMessage(firstFailure.reason))
       }
+
       setLoading(false)
     })
-  }, [apiBaseUrl, accessToken, branchId])
+  }, [accessToken, apiBaseUrl, branchId, pushNotice])
 
-  const kpiCards = [
-    { label: 'Active Members',    value: summary.active_members,       accent: 'violet', sub: `${summary.inactive_members} inactive` },
-    { label: 'Revenue MTD',       value: formatCurrency(summary.total_revenue_mtd), accent: 'cyan', sub: `${formatCurrency(summary.collections_today)} today` },
-    { label: 'Leads This Week',   value: summary.leads_this_week,      accent: 'orange', sub: `${summary.trials_scheduled} trials scheduled` },
-    { label: 'Classes Today',     value: summary.classes_today,        accent: 'purple', sub: `${Math.round(summary.class_fill_rate)}% fill rate` },
-    { label: 'Renewals Due (7d)', value: summary.renewals_due_7_days,  accent: 'red',    sub: 'Action required' },
-    { label: 'Outstanding Dues',  value: formatCurrency(summary.outstanding_dues), accent: 'green', sub: `${summary.trials_converted} converted leads` },
+  const summaryCards = [
+    {
+      label: 'Active roster',
+      value: summary.active_members.toString(),
+      note: `${summary.inactive_members} inactive members still need follow-up.`,
+    },
+    {
+      label: 'Revenue month to date',
+      value: formatCurrency(summary.total_revenue_mtd),
+      note: `${formatCurrency(summary.collections_today)} collected today.`,
+    },
+    {
+      label: 'Outstanding dues',
+      value: formatCurrency(summary.outstanding_dues),
+      note: `${summary.renewals_due_7_days} renewals are due in the next 7 days.`,
+    },
   ]
 
-  const maxRevenue = Math.max(...revenue.map((r) => Number(r.amount)), 1)
+  const maxRevenue = Math.max(...revenue.map((point) => Number(point.amount)), 1)
   const funnelEntries = Object.entries(funnel) as [string, number][]
-  const maxFunnel = Math.max(...funnelEntries.map(([, v]) => v), 1)
+  const maxFunnel = Math.max(...funnelEntries.map(([, count]) => count), 1)
+  const todayLabel = new Intl.DateTimeFormat('en-IN', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  }).format(new Date())
 
   return (
     <>
       <div className="page-header">
         <div>
-          <div className="page-title">DASHBOARD</div>
-          <div className="page-sub">Operations overview — {new Date().toLocaleDateString('en-IN', { weekday: 'long', month: 'long', day: 'numeric' })}</div>
+          <div className="page-eyebrow">Operations overview</div>
+          <div className="page-title">Dashboard</div>
+          <div className="page-sub">
+            Track memberships, trials, dues, and collections for {todayLabel}.
+          </div>
+        </div>
+
+        <div className="page-actions">
+          <span className="badge badge-active">{branchId ? 'Branch scoped' : 'All branches'}</span>
+          <span className="badge badge-new">{summary.classes_today} classes today</span>
         </div>
       </div>
 
       <div className="page-body">
         {summary.renewals_due_7_days > 0 && (
           <div className="alert-strip animate-in">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+              <line x1="12" y1="9" x2="12" y2="13" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
             </svg>
-            <span><strong>{summary.renewals_due_7_days}</strong> memberships expiring in the next 7 days — follow up now.</span>
+            <span>
+              <strong>{summary.renewals_due_7_days}</strong> memberships expire within 7 days. Queue those calls before close.
+            </span>
           </div>
         )}
 
         {loading ? (
           <SkeletonKpiGrid />
         ) : (
-          <div className="kpi-grid">
-            {kpiCards.map((card, i) => (
-              <div key={card.label} className={`kpi-card kpi-accent-${card.accent} animate-in delay-${i + 1}`}>
-                <div className="kpi-label">{card.label}</div>
-                <div className="kpi-value">{card.value}</div>
-                <div className="kpi-sub">{card.sub}</div>
+          <div className="summary-row">
+            {summaryCards.map((card, index) => (
+              <div key={card.label} className={`summary-card animate-in delay-${index + 1}`}>
+                <div className="summary-label">{card.label}</div>
+                <div className="summary-amount">{card.value}</div>
+                <div className="summary-note">{card.note}</div>
               </div>
             ))}
           </div>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }}>
-          {/* Revenue chart */}
-          <div className="card animate-in delay-3">
+        <div className="hero-grid">
+          <div className="card animate-in delay-2">
             <div className="card-header">
-              <span className="card-title">Revenue — last {revenue.length || 30} days</span>
-              <span style={{ fontSize: 11, color: 'var(--text-lo)' }}>Daily collections</span>
+              <span className="card-title">Revenue run-rate</span>
+              <span className="card-meta">Last {revenue.length || 30} days</span>
             </div>
             <div className="card-body">
               {loading ? (
@@ -114,12 +149,12 @@ export default function DashboardPage({ apiBaseUrl, accessToken, branchId, pushN
               ) : revenue.length > 0 ? (
                 <div className="bar-chart">
                   {revenue.map((point) => {
-                    const pct = Math.max((Number(point.amount) / maxRevenue) * 100, 2)
+                    const height = Math.max((Number(point.amount) / maxRevenue) * 100, 6)
                     return (
                       <div key={point.date} className="bar-slot">
                         <div
                           className="bar-fill"
-                          style={{ height: `${pct}%` }}
+                          style={{ height: `${height}%` }}
                           data-tip={formatCurrency(Number(point.amount))}
                         />
                         <span className="bar-label">{formatDate(point.date).split(' ')[0]}</span>
@@ -128,71 +163,103 @@ export default function DashboardPage({ apiBaseUrl, accessToken, branchId, pushN
                   })}
                 </div>
               ) : (
-                <div style={{ height: 120, display: 'grid', placeItems: 'center', color: 'var(--text-lo)', fontSize: 13 }}>
-                  No revenue data yet
-                </div>
+                <div className="empty-row">Revenue history will appear here as collections come in.</div>
               )}
             </div>
           </div>
 
-          {/* Lead funnel */}
-          <div className="card animate-in delay-4">
+          <div className="card animate-in delay-3">
             <div className="card-header">
-              <span className="card-title">Lead funnel</span>
-              <span style={{ fontSize: 11, color: 'var(--text-lo)' }}>{funnel.converted} converted</span>
+              <span className="card-title">Lead pipeline</span>
+              <span className="card-meta">{summary.trials_converted} conversions this week</span>
             </div>
             <div className="card-body">
               {loading ? (
                 <div className="skeleton skeleton-chart" />
-              ) : (
+              ) : funnelEntries.some(([, count]) => count > 0) ? (
                 <div className="funnel-list">
-                  {funnelEntries.map(([stage, count], i) => (
+                  {funnelEntries.map(([stage, count]) => (
                     <div key={stage} className="funnel-row">
                       <span className="funnel-label">{formatRole(stage)}</span>
                       <div className="funnel-bar-track">
                         <div
                           className="funnel-bar-fill"
-                          style={{
-                            width: `${(count / maxFunnel) * 100}%`,
-                            background: funnelColors[i % funnelColors.length],
-                          }}
+                          style={{ width: `${Math.max((count / maxFunnel) * 100, count > 0 ? 8 : 0)}%` }}
                         />
                       </div>
                       <span className="funnel-count">{count}</span>
                     </div>
                   ))}
                 </div>
+              ) : (
+                <div className="empty-row">Lead movement will show once the funnel starts filling.</div>
               )}
             </div>
           </div>
         </div>
 
-        {/* Dues */}
-        <div className="card animate-in delay-5">
-          <div className="card-header">
-            <span className="card-title">Outstanding dues</span>
-            <span style={{ fontSize: 11, color: 'var(--text-lo)' }}>{dues.length} members</span>
-          </div>
-          <div className="card-body">
-            {loading ? (
-              <div className="skeleton skeleton-chart" />
-            ) : dues.length > 0 ? (
-              <div className="dues-list">
-                {dues.slice(0, 5).map((item) => (
-                  <div key={item.member_id} className="dues-row">
-                    <div>
-                      <div className="dues-name">{item.full_name}</div>
-                      <div className="dues-meta">{item.days_overdue} days overdue</div>
+        <div className="split-grid">
+          <div className="card animate-in delay-4">
+            <div className="card-header">
+              <span className="card-title">Collections watchlist</span>
+              <span className="card-meta">{dues.length} members flagged</span>
+            </div>
+            <div className="card-body">
+              {loading ? (
+                <div className="skeleton skeleton-chart" />
+              ) : dues.length > 0 ? (
+                <div className="dues-list">
+                  {dues.slice(0, 6).map((item) => (
+                    <div key={item.member_id} className="dues-row">
+                      <div>
+                        <div className="dues-name">{item.full_name}</div>
+                        <div className="dues-meta">{item.days_overdue} days overdue</div>
+                      </div>
+                      <div className="dues-amount">{formatCurrency(item.amount_due)}</div>
                     </div>
-                    <div className="dues-amount">{formatCurrency(item.amount_due)}</div>
-                  </div>
-                ))}
+                  ))}
+                </div>
+              ) : (
+                <div className="empty-row">No dues are pending. Collections are current.</div>
+              )}
+            </div>
+          </div>
+
+          <div className="card animate-in delay-5">
+            <div className="card-header">
+              <span className="card-title">Today&apos;s rhythm</span>
+              <span className="card-meta">Live operating signals</span>
+            </div>
+            <div className="card-body">
+              <div className="info-row">
+                <div>
+                  <div className="table-name">Class fill rate</div>
+                  <div className="info-key">How close the schedule is to capacity</div>
+                </div>
+                <div className="info-val">{Math.round(summary.class_fill_rate)}%</div>
               </div>
-            ) : (
-              <div style={{ color: 'var(--text-lo)', fontSize: 13, padding: '16px 0' }}>
-                No outstanding dues — all members are current.
+              <div className="info-row">
+                <div>
+                  <div className="table-name">Leads this week</div>
+                  <div className="info-key">New demand entering the funnel</div>
+                </div>
+                <div className="info-val">{summary.leads_this_week}</div>
               </div>
-            )}
+              <div className="info-row">
+                <div>
+                  <div className="table-name">Trials scheduled</div>
+                  <div className="info-key">Booked sessions that need confirmation</div>
+                </div>
+                <div className="info-val">{summary.trials_scheduled}</div>
+              </div>
+              <div className="info-row">
+                <div>
+                  <div className="table-name">Collections today</div>
+                  <div className="info-key">Cash already landed before close</div>
+                </div>
+                <div className="info-val">{formatCurrency(summary.collections_today)}</div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

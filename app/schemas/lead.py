@@ -27,6 +27,7 @@ class LeadResponse(SQLModel):
     branch_id: UUID
     full_name: str
     phone: str
+    source: Optional[str] = None
     status: LeadStatusEnum
     trial_scheduled_at: Optional[datetime]
     created_at: datetime

@@ -27,8 +27,8 @@ async def create_subscription(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> SubscriptionResponse:
-    result = await session.exec(select(Staff).where(Staff.user_id == user.id))
-    staff = result.first()
+    result = await session.execute(select(Staff).where(Staff.user_id == user.id))
+    staff = result.scalars().first()
     if not staff:
         raise ResourceNotFoundException("Staff profile not found")
 
@@ -96,8 +96,8 @@ async def renew_subscription(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    result = await session.exec(select(Staff).where(Staff.user_id == user.id))
-    staff = result.first()
+    result = await session.execute(select(Staff).where(Staff.user_id == user.id))
+    staff = result.scalars().first()
     if not staff:
         raise ResourceNotFoundException("Staff profile not found")
 

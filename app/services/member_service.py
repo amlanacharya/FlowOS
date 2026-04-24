@@ -16,19 +16,20 @@ class MemberService:
 
     async def generate_member_code(self, branch_id: UUID) -> str:
         """Generate unique member code for a branch."""
-        result = await self.session.exec(
+        result = await self.session.execute(
             select(Member)
             .where(Member.branch_id == branch_id)
             .order_by(Member.created_at.desc())
         )
-        last_member = result.first()
+        last_member = result.scalars().first()
 
-        branch_prefix = "BR01"
-        count = 1
+        branch_prefix = f"BR{branch_id.hex[:6].upper()}"
+        count = 1001
 
         if last_member:
             parts = last_member.member_code.split("-")
             if len(parts) == 2:
+                branch_prefix = parts[0] or branch_prefix
                 try:
                     count = int(parts[1]) + 1
                 except ValueError:
@@ -60,8 +61,8 @@ class MemberService:
         query = select(Member).where(Member.branch_id == branch_id)
         if status:
             query = query.where(Member.status == status)
-        result = await self.session.exec(query.offset(skip).limit(limit))
-        return result.all()
+        result = await self.session.execute(query.offset(skip).limit(limit))
+        return result.scalars().all()
 
     async def update_member(
         self, member_id: UUID, data: MemberUpdate

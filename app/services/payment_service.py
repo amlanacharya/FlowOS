@@ -16,22 +16,51 @@ class PaymentService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
+    async def _resolve_subscription(
+        self,
+        branch_id: UUID,
+        member_id: UUID,
+        subscription_id: Optional[UUID],
+    ) -> Optional[MemberSubscription]:
+        if subscription_id:
+            sub = await self.session.get(MemberSubscription, subscription_id)
+            if sub and sub.branch_id == branch_id and sub.member_id == member_id:
+                return sub
+            return None
+
+        statement = (
+            select(MemberSubscription)
+            .where(MemberSubscription.branch_id == branch_id)
+            .where(MemberSubscription.member_id == member_id)
+            .where(MemberSubscription.amount_due > 0)
+            .where(MemberSubscription.status != SubscriptionStatusEnum.EXPIRED)
+            .order_by(MemberSubscription.end_date.asc(), MemberSubscription.created_at.desc())
+            .limit(1)
+        )
+        result = await self.session.execute(statement)
+        return result.scalars().first()
+
     async def record_payment(self, branch_id: UUID, data: PaymentCreate, staff_id: UUID) -> Payment:
         """Record a payment and update subscription amounts."""
+        subscription = await self._resolve_subscription(branch_id, data.member_id, data.subscription_id)
+        payment_data = data.dict(exclude_unset=True)
+
+        if subscription:
+            payment_data["subscription_id"] = subscription.id
+
         payment = Payment(
             branch_id=branch_id,
             received_by_staff_id=staff_id,
-            **data.dict(exclude_unset=True)
+            **payment_data,
         )
         self.session.add(payment)
 
         # Update subscription amount_due and amount_paid atomically
-        if data.subscription_id:
-            sub = await self.session.get(MemberSubscription, data.subscription_id)
-            if sub:
-                sub.amount_paid = sub.amount_paid + data.amount
-                sub.amount_due = max(Decimal("0.00"), sub.total_amount - sub.amount_paid)
-                self.session.add(sub)
+        if subscription:
+            updated_paid = subscription.amount_paid + data.amount
+            subscription.amount_paid = min(subscription.total_amount, updated_paid)
+            subscription.amount_due = max(Decimal("0.00"), subscription.total_amount - updated_paid)
+            self.session.add(subscription)
 
         await self.session.commit()
         await self.session.refresh(payment)

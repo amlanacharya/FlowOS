@@ -64,6 +64,7 @@ export type Lead = {
   branch_id: string
   full_name: string
   phone: string
+  source?: string
   status: string
   trial_scheduled_at: string | null
   created_at: string

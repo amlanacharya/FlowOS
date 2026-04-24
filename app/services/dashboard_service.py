@@ -30,53 +30,53 @@ class DashboardService:
     async def get_summary(self, branch_id: UUID) -> DashboardSummary:
         """Get dashboard summary metrics for a branch."""
         # Active members
-        active_result = await self.session.exec(
+        active_result = await self.session.execute(
             select(func.count(Member.id)).where(
                 (Member.branch_id == branch_id)
                 & (Member.status == MemberStatusEnum.ACTIVE)
             )
         )
-        active_members = active_result.first() or 0
+        active_members = active_result.scalar() or 0
 
         # Revenue MTD
         first_day_month = date.today().replace(day=1)
-        revenue_result = await self.session.exec(
+        revenue_result = await self.session.execute(
             select(func.sum(Payment.amount)).where(
                 (Payment.branch_id == branch_id) & (Payment.payment_date >= first_day_month)
             )
         )
-        revenue_mtd = revenue_result.first() or Decimal("0.00")
+        revenue_mtd = revenue_result.scalar() or Decimal("0.00")
 
         # Leads this week
         week_ago = date.today() - timedelta(days=7)
-        leads_result = await self.session.exec(
+        leads_result = await self.session.execute(
             select(func.count(Lead.id)).where(
                 (Lead.branch_id == branch_id) & (Lead.created_at >= week_ago)
             )
         )
-        leads_this_week = leads_result.first() or 0
+        leads_this_week = leads_result.scalar() or 0
 
         # Trials scheduled
-        trials_scheduled_result = await self.session.exec(
+        trials_scheduled_result = await self.session.execute(
             select(func.count(Lead.id)).where(
                 (Lead.branch_id == branch_id)
                 & (Lead.status == LeadStatusEnum.TRIAL_SCHEDULED)
             )
         )
-        trials_scheduled = trials_scheduled_result.first() or 0
+        trials_scheduled = trials_scheduled_result.scalar() or 0
 
         # Trials converted
-        trials_converted_result = await self.session.exec(
+        trials_converted_result = await self.session.execute(
             select(func.count(Lead.id)).where(
                 (Lead.branch_id == branch_id) & (Lead.status == LeadStatusEnum.CONVERTED)
             )
         )
-        trials_converted = trials_converted_result.first() or 0
+        trials_converted = trials_converted_result.scalar() or 0
 
         # Renewals due in 7 days
         today = date.today()
         due_date = today + timedelta(days=7)
-        renewals_result = await self.session.exec(
+        renewals_result = await self.session.execute(
             select(func.count(MemberSubscription.id)).where(
                 (MemberSubscription.branch_id == branch_id)
                 & (MemberSubscription.end_date <= due_date)
@@ -84,29 +84,29 @@ class DashboardService:
                 & (MemberSubscription.status == SubscriptionStatusEnum.ACTIVE)
             )
         )
-        renewals_due_7_days = renewals_result.first() or 0
+        renewals_due_7_days = renewals_result.scalar() or 0
 
         # Collections today
-        today_collections_result = await self.session.exec(
+        today_collections_result = await self.session.execute(
             select(func.sum(Payment.amount)).where(
                 (Payment.branch_id == branch_id) & (Payment.payment_date == today)
             )
         )
-        collections_today = today_collections_result.first() or Decimal("0.00")
+        collections_today = today_collections_result.scalar() or Decimal("0.00")
 
         # Outstanding dues
-        outstanding_result = await self.session.exec(
+        outstanding_result = await self.session.execute(
             select(func.sum(MemberSubscription.amount_due)).where(
                 (MemberSubscription.branch_id == branch_id)
                 & (MemberSubscription.status != SubscriptionStatusEnum.EXPIRED)
             )
         )
-        outstanding_dues = outstanding_result.first() or Decimal("0.00")
+        outstanding_dues = outstanding_result.scalar() or Decimal("0.00")
 
         # Classes today
         today_start = datetime.combine(today, datetime.min.time())
         today_end = datetime.combine(today, datetime.max.time())
-        classes_today_result = await self.session.exec(
+        classes_today_result = await self.session.execute(
             select(func.count(ClassSession.id)).where(
                 (ClassSession.branch_id == branch_id)
                 & (ClassSession.scheduled_at >= today_start)
@@ -114,15 +114,15 @@ class DashboardService:
                 & (ClassSession.is_cancelled == False)
             )
         )
-        classes_today = classes_today_result.first() or 0
+        classes_today = classes_today_result.scalar() or 0
 
         # Class fill rate
-        sessions_result = await self.session.exec(
+        sessions_result = await self.session.execute(
             select(ClassSession).where(
                 (ClassSession.branch_id == branch_id) & (ClassSession.is_cancelled == False)
             )
         )
-        all_sessions = sessions_result.all()
+        all_sessions = sessions_result.scalars().all()
         fill_rate = 0.0
         if all_sessions:
             total_capacity = sum(s.capacity for s in all_sessions)
@@ -131,13 +131,13 @@ class DashboardService:
                 fill_rate = (total_enrolled / total_capacity) * 100
 
         # Inactive members
-        inactive_result = await self.session.exec(
+        inactive_result = await self.session.execute(
             select(func.count(Member.id)).where(
                 (Member.branch_id == branch_id)
                 & (Member.status == MemberStatusEnum.INACTIVE)
             )
         )
-        inactive_members = inactive_result.first() or 0
+        inactive_members = inactive_result.scalar() or 0
 
         return DashboardSummary(
             active_members=active_members,
@@ -158,7 +158,7 @@ class DashboardService:
     ) -> List[RevenueBreakdown]:
         """Get revenue breakdown for specified number of days."""
         start_date = date.today() - timedelta(days=days)
-        results = await self.session.exec(
+        results = await self.session.execute(
             select(
                 Payment.payment_date,
                 func.sum(Payment.amount).label("total_amount"),
@@ -176,7 +176,7 @@ class DashboardService:
     async def get_dues_report(self, branch_id: UUID) -> List[DuesReport]:
         """Get outstanding dues report."""
         today = date.today()
-        subs_result = await self.session.exec(
+        subs_result = await self.session.execute(
             select(MemberSubscription, Member)
             .join(Member)
             .where(
@@ -204,12 +204,12 @@ class DashboardService:
         """Get lead funnel metrics."""
         funnel: dict = {}
         for status in LeadStatusEnum:
-            count_result = await self.session.exec(
+            count_result = await self.session.execute(
                 select(func.count(Lead.id)).where(
                     (Lead.branch_id == branch_id) & (Lead.status == status)
                 )
             )
-            count = count_result.first() or 0
+            count = count_result.scalar() or 0
             funnel[status.value] = count
 
         return LeadFunnel(
@@ -226,7 +226,7 @@ class DashboardService:
     ) -> List[AttendanceTrend]:
         """Get attendance trends for specified number of days."""
         start_date = date.today() - timedelta(days=days)
-        results = await self.session.exec(
+        results = await self.session.execute(
             select(
                 func.date(Attendance.checked_in_at).label("attendance_date"),
                 func.count(Attendance.id).label("checkin_count"),

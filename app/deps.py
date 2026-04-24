@@ -1,22 +1,25 @@
-from typing import List
 from uuid import UUID
 
-from fastapi import Depends, Header, Request
+from fastapi import Depends, Request
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select
 
 from app.core.enums import RoleEnum
 from app.core.exceptions import InsufficientPermissionsException, InvalidCredentialsException
 from app.core.security import decode_token
 from app.database import get_session
-from app.models import Staff, User
+from app.models import User
 
 
-async def get_token_from_header(authorization: str = Header(...)) -> str:
-    parts = authorization.split()
-    if len(parts) != 2 or parts[0].lower() != "bearer":
+bearer_scheme = HTTPBearer(auto_error=False, scheme_name="BearerAuth")
+
+
+async def get_token_from_header(
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+) -> str:
+    if not credentials or credentials.scheme.lower() != "bearer":
         raise InvalidCredentialsException()
-    return parts[1]
+    return credentials.credentials
 
 
 async def get_current_user_claims(

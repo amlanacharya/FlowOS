@@ -61,11 +61,11 @@ class NotificationService:
         self, branch_id: UUID, skip: int = 0, limit: int = 100
     ) -> List[NotificationLog]:
         """List notification logs for a branch."""
-        result = await self.session.exec(
+        result = await self.session.execute(
             select(NotificationLog)
             .where(NotificationLog.branch_id == branch_id)
             .order_by(NotificationLog.created_at.desc())
             .offset(skip)
             .limit(limit)
         )
-        return result.all()
+        return result.scalars().all()
