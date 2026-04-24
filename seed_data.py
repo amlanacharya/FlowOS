@@ -46,7 +46,7 @@ def seed_database():
         #         session.delete(item)
         # session.commit()
 
-        print("🌱 Seeding sample data...\n")
+        print("Seeding sample data...\n")
 
         # 1. Organization
         org = Organization(
@@ -57,7 +57,7 @@ def seed_database():
         )
         session.add(org)
         session.flush()
-        print(f"✓ Created organization: {org.name} (id: {org.id})")
+        print(f"Created organization: {org.name} (id: {org.id})")
 
         # 2. Branch
         branch = Branch(
@@ -69,7 +69,7 @@ def seed_database():
         )
         session.add(branch)
         session.flush()
-        print(f"✓ Created branch: {branch.name}")
+        print(f"Created branch: {branch.name}")
 
         # 3. Users & Staff
         owner_user = User(
@@ -85,12 +85,12 @@ def seed_database():
             user_id=owner_user.id,
             organization_id=org.id,
             branch_id=branch.id,
-            role=RoleEnum.owner,
+            role=RoleEnum.OWNER,
             joined_at=date.today(),
         )
         session.add(owner_staff)
         session.flush()
-        print(f"✓ Created owner: {owner_user.full_name}")
+        print(f"Created owner: {owner_user.full_name}")
 
         manager_user = User(
             email="manager@fitlife.com",
@@ -105,12 +105,12 @@ def seed_database():
             user_id=manager_user.id,
             organization_id=org.id,
             branch_id=branch.id,
-            role=RoleEnum.branch_manager,
+            role=RoleEnum.BRANCH_MANAGER,
             joined_at=date.today(),
         )
         session.add(manager_staff)
         session.flush()
-        print(f"✓ Created manager: {manager_user.full_name}")
+        print(f"Created manager: {manager_user.full_name}")
 
         trainer_user = User(
             email="trainer@fitlife.com",
@@ -125,13 +125,13 @@ def seed_database():
             user_id=trainer_user.id,
             organization_id=org.id,
             branch_id=branch.id,
-            role=RoleEnum.trainer,
+            role=RoleEnum.TRAINER,
             specialization="CrossFit",
             joined_at=date.today(),
         )
         session.add(trainer_staff)
         session.flush()
-        print(f"✓ Created trainer: {trainer_user.full_name}")
+        print(f"Created trainer: {trainer_user.full_name}")
 
         # 4. Membership Plans
         monthly_plan = MembershipPlan(
@@ -156,13 +156,13 @@ def seed_database():
         )
         session.add(quarterly_plan)
         session.flush()
-        print(f"✓ Created {2} membership plans")
+        print(f"Created {2} membership plans")
 
         # 5. Leads
         leads_data = [
-            ("Alice Smith", "+1111111111", LeadStatusEnum.new),
-            ("Bob Johnson", "+2222222222", LeadStatusEnum.contacted),
-            ("Carol White", "+3333333333", LeadStatusEnum.trial_scheduled),
+            ("Alice Smith", "+1111111111", LeadStatusEnum.NEW),
+            ("Bob Johnson", "+2222222222", LeadStatusEnum.CONTACTED),
+            ("Carol White", "+3333333333", LeadStatusEnum.TRIAL_SCHEDULED),
         ]
         leads = []
         for name, phone, status in leads_data:
@@ -176,7 +176,7 @@ def seed_database():
             session.add(lead)
             leads.append(lead)
         session.flush()
-        print(f"✓ Created {len(leads)} leads")
+        print(f"Created {len(leads)} leads")
 
         # 6. Members
         members_data = [
@@ -191,13 +191,13 @@ def seed_database():
                 full_name=name,
                 phone=phone,
                 member_code=f"BR01-{1001+i:04d}",
-                status=MemberStatusEnum.active,
+                status=MemberStatusEnum.ACTIVE,
                 joined_at=date.today() - timedelta(days=30*i),
             )
             session.add(member)
             members.append(member)
         session.flush()
-        print(f"✓ Created {len(members)} members")
+        print(f"Created {len(members)} members")
 
         # 7. Subscriptions
         for i, member in enumerate(members):
@@ -209,7 +209,7 @@ def seed_database():
                 plan_id=monthly_plan.id,
                 start_date=start_date,
                 end_date=end_date,
-                status=SubscriptionStatusEnum.active,
+                status=SubscriptionStatusEnum.ACTIVE,
                 total_amount=monthly_plan.price,
                 amount_paid=Decimal("49.99") if i > 0 else Decimal("0.00"),
                 amount_due=Decimal("0.00") if i > 0 else monthly_plan.price,
@@ -217,7 +217,7 @@ def seed_database():
             )
             session.add(sub)
         session.flush()
-        print(f"✓ Created subscriptions for {len(members)} members")
+        print(f"Created subscriptions for {len(members)} members")
 
         # 8. Payments
         for i, member in enumerate(members[1:], 1):
@@ -226,13 +226,13 @@ def seed_database():
                 member_id=member.id,
                 subscription_id=None,  # Would normally reference subscription
                 amount=Decimal("49.99"),
-                mode=PaymentModeEnum.cash if i % 2 == 0 else PaymentModeEnum.card,
+                mode=PaymentModeEnum.CASH if i % 2 == 0 else PaymentModeEnum.CARD,
                 received_by_staff_id=manager_staff.id,
                 payment_date=date.today() - timedelta(days=i*5),
             )
             session.add(payment)
         session.flush()
-        print(f"✓ Created payments")
+        print("Created payments")
 
         # 9. Class Types
         class_types = []
@@ -245,7 +245,7 @@ def seed_database():
             session.add(ct)
             class_types.append(ct)
         session.flush()
-        print(f"✓ Created {len(class_types)} class types")
+        print(f"Created {len(class_types)} class types")
 
         # 10. Class Sessions
         for i in range(3):
@@ -260,7 +260,7 @@ def seed_database():
             )
             session.add(cs)
         session.flush()
-        print(f"✓ Created class sessions")
+        print("Created class sessions")
 
         # 11. Attendance
         for i, member in enumerate(members):
@@ -268,27 +268,27 @@ def seed_database():
             att = Attendance(
                 branch_id=branch.id,
                 member_id=member.id,
-                attendance_type=AttendanceTypeEnum.gym_checkin,
+                attendance_type=AttendanceTypeEnum.GYM_CHECKIN,
                 checked_in_at=checkin_time,
                 checked_out_at=checkin_time + timedelta(hours=1, minutes=15),
                 recorded_by_staff_id=manager_staff.id,
             )
             session.add(att)
         session.flush()
-        print(f"✓ Created attendance records")
+        print("Created attendance records")
 
         # Commit all changes
         session.commit()
-        print("\n✅ Sample data seeding complete!\n")
+        print("\nSample data seeding complete.\n")
 
         print("Test Credentials:")
         print(f"  Email: owner@fitlife.com")
         print(f"  Password: OwnerPass123!")
-        print(f"\nNext: Visit http://localhost:8000/docs and test login")
+        print("\nNext: Visit http://localhost:8000/docs and test login")
 
 if __name__ == "__main__":
     try:
         seed_database()
     except Exception as e:
-        print(f"\n❌ Error seeding database: {e}")
+        print(f"\nError seeding database: {e}")
         sys.exit(1)
