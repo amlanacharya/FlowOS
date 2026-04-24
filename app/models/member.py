@@ -2,7 +2,7 @@ from datetime import date, datetime
 from typing import TYPE_CHECKING, List, Optional
 from uuid import UUID, uuid4
 
-from sqlalchemy import Column, PgEnum
+from sqlalchemy import Column, Enum
 from sqlmodel import Field, Relationship, SQLModel
 
 from app.core.enums import MemberStatusEnum
@@ -27,7 +27,7 @@ class Member(SQLModel, table=True):
     member_code: str = Field(max_length=50, unique=True, index=True)
     status: MemberStatusEnum = Field(
         default=MemberStatusEnum.INACTIVE,
-        sa_column=Column(PgEnum(MemberStatusEnum, native_enum=False), nullable=False)
+        sa_column=Column(Enum(MemberStatusEnum, native_enum=False), nullable=False)
     )
     joined_at: date = Field(default_factory=date.today)
     profile_photo_url: Optional[str] = None

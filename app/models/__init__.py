@@ -7,6 +7,7 @@ from .lead import Lead
 from .member import Member
 from .member_subscription import MemberSubscription
 from .membership_plan import MembershipPlan
+from .notification_log import NotificationLog
 from .organization import Organization
 from .payment import Payment
 from .refresh_token import RefreshToken
@@ -24,6 +25,7 @@ __all__ = [
     "MembershipPlan",
     "MemberSubscription",
     "Payment",
+    "NotificationLog",
     "ClassType",
     "ClassSession",
     "ClassEnrollment",

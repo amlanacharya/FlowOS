@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID, uuid4
 
-from sqlalchemy import Column, PgEnum
+from sqlalchemy import Column, Enum
 from sqlmodel import Field, Relationship, SQLModel
 
 from app.core.enums import LeadStatusEnum
@@ -24,7 +24,7 @@ class Lead(SQLModel, table=True):
     source: Optional[str] = Field(default=None, max_length=100)
     status: LeadStatusEnum = Field(
         default=LeadStatusEnum.NEW,
-        sa_column=Column(PgEnum(LeadStatusEnum, native_enum=False), nullable=False)
+        sa_column=Column(Enum(LeadStatusEnum, native_enum=False), nullable=False)
     )
     assigned_to_staff_id: Optional[UUID] = Field(default=None, foreign_key="staff.id")
     trial_scheduled_at: Optional[datetime] = None

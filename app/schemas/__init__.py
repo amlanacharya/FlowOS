@@ -2,6 +2,7 @@
 from .attendance import AttendanceCheckinRequest, AttendanceMarkRequest, AttendanceResponse
 from .auth import LoginRequest, RefreshRequest, TokenResponse, UserProfileResponse
 from .branch import BranchCreate, BranchResponse
+from .class_type import ClassTypeCreate, ClassTypeResponse
 from .class_session import ClassSessionCreate, ClassSessionEnrollRequest, ClassSessionResponse
 from .lead import LeadCreate, LeadResponse, LeadUpdate
 from .member import MemberCreate, MemberDetailResponse, MemberResponse
@@ -22,6 +23,8 @@ __all__ = [
     "OrganizationResponse",
     "BranchCreate",
     "BranchResponse",
+    "ClassTypeCreate",
+    "ClassTypeResponse",
     # Staff
     "StaffCreate",
     "StaffResponse",

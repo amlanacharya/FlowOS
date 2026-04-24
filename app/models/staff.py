@@ -2,7 +2,7 @@ from datetime import date, datetime
 from typing import TYPE_CHECKING, List, Optional
 from uuid import UUID, uuid4
 
-from sqlalchemy import Column, PgEnum
+from sqlalchemy import Column, Enum
 from sqlmodel import Field, Relationship, SQLModel
 
 from app.core.enums import RoleEnum
@@ -22,7 +22,7 @@ class Staff(SQLModel, table=True):
     organization_id: UUID = Field(foreign_key="organizations.id", index=True)
     branch_id: UUID = Field(foreign_key="branches.id", index=True)
     role: RoleEnum = Field(
-        sa_column=Column(PgEnum(RoleEnum, native_enum=False), nullable=False)
+        sa_column=Column(Enum(RoleEnum, native_enum=False), nullable=False)
     )
     employee_code: Optional[str] = Field(default=None, max_length=50)
     specialization: Optional[str] = Field(default=None, max_length=255)

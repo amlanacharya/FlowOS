@@ -3,7 +3,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID, uuid4
 
-from sqlalchemy import Column, Numeric, PgEnum
+from sqlalchemy import Column, Enum, Numeric
 from sqlmodel import Field, Relationship, SQLModel
 
 from app.core.enums import SubscriptionStatusEnum
@@ -25,7 +25,7 @@ class MemberSubscription(SQLModel, table=True):
     end_date: date
     status: SubscriptionStatusEnum = Field(
         default=SubscriptionStatusEnum.ACTIVE,
-        sa_column=Column(PgEnum(SubscriptionStatusEnum, native_enum=False), nullable=False)
+        sa_column=Column(Enum(SubscriptionStatusEnum, native_enum=False), nullable=False)
     )
     total_amount: Decimal = Field(sa_column=Column(Numeric(10, 2)))
     amount_paid: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(10, 2)))
