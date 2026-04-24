@@ -1,0 +1,48 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: flowos_postgres
+    environment:
+      POSTGRES_USER: flowos
+      POSTGRES_PASSWORD: flowos_dev_pass
+      POSTGRES_DB: flowos_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flowos -d flowos_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - flowos_network
+
+  app:
+    build: .
+    container_name: flowos_app
+    environment:
+      DATABASE_URL: postgresql+psycopg2://flowos:flowos_dev_pass@postgres/flowos_db
+      POSTGRES_USER: flowos
+      POSTGRES_PASSWORD: flowos_dev_pass
+      POSTGRES_DB: flowos_db
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./app:/app/app
+      - ./alembic:/app/alembic
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - flowos_network
+
+volumes:
+  postgres_data:
+
+networks:
+  flowos_network:
+    driver: bridge
