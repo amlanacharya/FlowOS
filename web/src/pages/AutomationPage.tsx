@@ -4,6 +4,7 @@ import type { AutomationRule, AutomationRuleCreate } from '../types'
 import { errorMessage, formatDate } from '../utils'
 import type { Notice } from '../components/NoticeStack'
 import { useAsyncData } from '../hooks/useAsyncData'
+import { TriggerEvent, AutomationAction, TRIGGER_EVENT_LABELS, ACTION_LABELS } from '../constants'
 
 type Props = {
   apiBaseUrl: string
@@ -14,10 +15,10 @@ type Props = {
 
 const defaultRule: AutomationRuleCreate = {
   name: 'Remind members before expiry',
-  trigger_event: 'subscription_expiring',
+  trigger_event: TriggerEvent.SubscriptionExpiring,
   threshold_days: 7,
   threshold_amount: null,
-  action: 'send_whatsapp',
+  action: AutomationAction.SendWhatsApp,
 }
 
 export default function AutomationPage({ apiBaseUrl, accessToken, branchId, pushNotice }: Props) {
@@ -87,16 +88,17 @@ export default function AutomationPage({ apiBaseUrl, accessToken, branchId, push
               <div className="field">
                 <label className="field-label" htmlFor="trigger">Trigger</label>
                 <select id="trigger" value={form.trigger_event} onChange={(event) => setForm((current) => ({ ...current, trigger_event: event.target.value as AutomationRuleCreate['trigger_event'] }))}>
-                  <option value="subscription_expiring">Subscription expiring</option>
-                  <option value="lead_stale">Lead stale</option>
-                  <option value="dues_overdue">Dues overdue</option>
+                  {Object.entries(TRIGGER_EVENT_LABELS).map(([key, label]) => (
+                    <option key={key} value={key}>{label}</option>
+                  ))}
                 </select>
               </div>
               <div className="summary-row">
                 <input className="toolbar-select" type="number" min="1" value={form.threshold_days} onChange={(event) => setForm((current) => ({ ...current, threshold_days: Number(event.target.value) }))} />
                 <select className="toolbar-select" value={form.action} onChange={(event) => setForm((current) => ({ ...current, action: event.target.value as AutomationRuleCreate['action'] }))}>
-                  <option value="send_whatsapp">Send WhatsApp</option>
-                  <option value="alert_manager">Alert manager</option>
+                  {Object.entries(ACTION_LABELS).map(([key, label]) => (
+                    <option key={key} value={key}>{label}</option>
+                  ))}
                 </select>
               </div>
               <button className="btn btn-primary" type="submit" disabled={submitting}>{submitting ? 'Creating...' : 'Create rule'}</button>

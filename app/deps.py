@@ -1,3 +1,4 @@
+from typing import TypeVar
 from uuid import UUID
 
 from fastapi import Depends, Request
@@ -5,10 +6,12 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.enums import RoleEnum
-from app.core.exceptions import InsufficientPermissionsException, InvalidCredentialsException
+from app.core.exceptions import InsufficientPermissionsException, InvalidCredentialsException, ResourceNotFoundException
 from app.core.security import decode_token
 from app.database import get_session
 from app.models import User
+
+T = TypeVar('T')
 
 
 bearer_scheme = HTTPBearer(auto_error=False, scheme_name="BearerAuth")
@@ -62,3 +65,10 @@ async def get_branch_scope(
             if branch_id:
                 return UUID(branch_id)
     return UUID(claims["branch_id"])
+
+
+def check_found(item: T | None) -> T:
+    """Raise ResourceNotFoundException if item is None, otherwise return item."""
+    if not item:
+        raise ResourceNotFoundException()
+    return item

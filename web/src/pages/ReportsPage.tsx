@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   getCampaignAnalytics,
   getDailySalesReport,
@@ -51,8 +51,15 @@ export default function ReportsPage({ apiBaseUrl, accessToken, branchId, pushNot
     'Failed to load reports',
   )
 
-  const busiest = peakHours.reduce((best, bucket) => bucket.checkin_count > best.checkin_count ? bucket : best, { hour: 0, checkin_count: 0 })
-  const revenueTotal = monthlyRevenue.reduce((sum, row) => sum + Number(row.total_revenue), 0)
+  const busiest = useMemo(
+    () => peakHours.reduce((best, bucket) => bucket.checkin_count > best.checkin_count ? bucket : best, { hour: 0, checkin_count: 0 }),
+    [peakHours],
+  )
+
+  const revenueTotal = useMemo(
+    () => monthlyRevenue.reduce((sum, row) => sum + Number(row.total_revenue), 0),
+    [monthlyRevenue],
+  )
 
   return (
     <>
