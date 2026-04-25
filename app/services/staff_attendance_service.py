@@ -2,6 +2,7 @@ from datetime import date, datetime
 from typing import List, Optional, Tuple
 from uuid import UUID
 
+from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -81,34 +82,23 @@ class StaffAttendanceService:
         limit: int = 100,
     ) -> Tuple[List[StaffAttendance], int]:
         """List staff attendance records."""
-        statement = select(StaffAttendance).where(
-            StaffAttendance.branch_id == branch_id
-        )
+        conditions = [StaffAttendance.branch_id == branch_id]
 
         if staff_id:
-            statement = statement.where(StaffAttendance.staff_id == staff_id)
+            conditions.append(StaffAttendance.staff_id == staff_id)
 
         if date_from:
-            statement = statement.where(StaffAttendance.attendance_date >= date_from)
+            conditions.append(StaffAttendance.attendance_date >= date_from)
 
         if date_to:
-            statement = statement.where(StaffAttendance.attendance_date <= date_to)
+            conditions.append(StaffAttendance.attendance_date <= date_to)
 
-        # Get total count
-        count_statement = select(StaffAttendance).where(
-            StaffAttendance.branch_id == branch_id
+        count_result = await self.session.execute(
+            select(func.count()).select_from(StaffAttendance).where(*conditions)
         )
-        if staff_id:
-            count_statement = count_statement.where(StaffAttendance.staff_id == staff_id)
-        if date_from:
-            count_statement = count_statement.where(StaffAttendance.attendance_date >= date_from)
-        if date_to:
-            count_statement = count_statement.where(StaffAttendance.attendance_date <= date_to)
+        total = count_result.scalar() or 0
 
-        count_result = await self.session.execute(count_statement)
-        total = len(count_result.scalars().all())
-
-        statement = statement.order_by(StaffAttendance.checked_in_at.desc()).offset(skip).limit(limit)
+        statement = select(StaffAttendance).where(*conditions).order_by(StaffAttendance.checked_in_at.desc()).offset(skip).limit(limit)
         result = await self.session.execute(statement)
         return result.scalars().all(), total
 
@@ -116,29 +106,27 @@ class StaffAttendanceService:
         """Get staff attendance summary for today."""
         today = date.today()
 
-        # Present today (has check_in record for today)
-        present_statement = (
-            select(StaffAttendance)
-            .where(StaffAttendance.branch_id == branch_id)
-            .where(StaffAttendance.attendance_date == today)
+        present_result = await self.session.execute(
+            select(func.count()).select_from(StaffAttendance).where(
+                StaffAttendance.branch_id == branch_id,
+                StaffAttendance.attendance_date == today,
+            )
         )
-        present_result = await self.session.execute(present_statement)
-        present_count = len(present_result.scalars().all())
+        present_count = present_result.scalar() or 0
 
-        # Currently checked in (no check_out)
-        checked_in_statement = (
-            select(StaffAttendance)
-            .where(StaffAttendance.branch_id == branch_id)
-            .where(StaffAttendance.attendance_date == today)
-            .where(StaffAttendance.checked_out_at == None)
+        checked_in_result = await self.session.execute(
+            select(func.count()).select_from(StaffAttendance).where(
+                StaffAttendance.branch_id == branch_id,
+                StaffAttendance.attendance_date == today,
+                StaffAttendance.checked_out_at == None,
+            )
         )
-        checked_in_result = await self.session.execute(checked_in_statement)
-        checked_in_count = len(checked_in_result.scalars().all())
+        checked_in_count = checked_in_result.scalar() or 0
 
-        # Staff count for this branch
-        staff_statement = select(Staff).where(Staff.branch_id == branch_id)
-        staff_result = await self.session.execute(staff_statement)
-        total_staff = len(staff_result.scalars().all())
+        total_staff_result = await self.session.execute(
+            select(func.count()).select_from(Staff).where(Staff.branch_id == branch_id)
+        )
+        total_staff = total_staff_result.scalar() or 0
 
         return {
             "present_today": present_count,
