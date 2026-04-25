@@ -2,9 +2,11 @@ from datetime import datetime, timedelta
 from typing import List, Tuple
 from uuid import UUID
 
+from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
+from app.core.enums import ShiftTypeEnum
 from app.models import StaffShift, StaffAttendance
 
 
@@ -22,7 +24,9 @@ class StaffShiftService:
         shift_type: str = "regular",
         notes: str = None,
     ) -> StaffShift:
-        """Create a new shift. Checks for overlaps."""
+        """Create a new shift with overlap detection."""
+        if shift_end <= shift_start:
+            raise ValueError("Shift end must be after shift start")
         await self._check_overlap(staff_id, shift_start, shift_end)
 
         shift = StaffShift(
@@ -91,27 +95,19 @@ class StaffShiftService:
         limit: int = 100,
     ) -> Tuple[List[StaffShift], int]:
         """List shifts with filtering."""
-        statement = select(StaffShift).where(StaffShift.branch_id == branch_id)
-
+        conditions = [StaffShift.branch_id == branch_id]
         if staff_id:
-            statement = statement.where(StaffShift.staff_id == staff_id)
+            conditions.append(StaffShift.staff_id == staff_id)
         if date_from:
-            statement = statement.where(StaffShift.shift_date >= date_from)
+            conditions.append(StaffShift.shift_date >= date_from)
         if date_to:
-            statement = statement.where(StaffShift.shift_date <= date_to)
+            conditions.append(StaffShift.shift_date <= date_to)
 
-        count_statement = select(StaffShift).where(StaffShift.branch_id == branch_id)
-        if staff_id:
-            count_statement = count_statement.where(StaffShift.staff_id == staff_id)
-        if date_from:
-            count_statement = count_statement.where(StaffShift.shift_date >= date_from)
-        if date_to:
-            count_statement = count_statement.where(StaffShift.shift_date <= date_to)
+        count_stmt = select(func.count()).select_from(StaffShift).where(*conditions)
+        count_result = await self.session.execute(count_stmt)
+        total = count_result.scalar() or 0
 
-        count_result = await self.session.execute(count_statement)
-        total = len(count_result.scalars().all())
-
-        statement = statement.order_by(StaffShift.shift_date.desc()).offset(skip).limit(limit)
+        statement = select(StaffShift).where(*conditions).order_by(StaffShift.shift_date.desc()).offset(skip).limit(limit)
         result = await self.session.execute(statement)
         return result.scalars().all(), total
 
@@ -123,32 +119,30 @@ class StaffShiftService:
         date_to: datetime = None,
     ) -> dict:
         """Compare scheduled vs actual hours."""
-        shifts, _ = await self.list_shifts(branch_id, staff_id, date_from, date_to, limit=1000)
-        attendance_statement = select(StaffAttendance).where(
-            StaffAttendance.staff_id == staff_id,
-            StaffAttendance.branch_id == branch_id,
-        )
+        shift_conditions = [StaffShift.branch_id == branch_id, StaffShift.staff_id == staff_id]
         if date_from:
-            attendance_statement = attendance_statement.where(
-                StaffAttendance.attendance_date >= date_from.date()
-            )
+            shift_conditions.append(StaffShift.shift_date >= date_from)
         if date_to:
-            attendance_statement = attendance_statement.where(
-                StaffAttendance.attendance_date <= date_to.date()
-            )
+            shift_conditions.append(StaffShift.shift_date <= date_to)
 
-        attendance_result = await self.session.execute(attendance_statement)
-        attendances = attendance_result.scalars().all()
+        shift_stmt = select(StaffShift).where(*shift_conditions)
+        shift_result = await self.session.execute(shift_stmt)
+        shifts = shift_result.scalars().all()
 
-        scheduled_hours = sum(
-            (shift.shift_end - shift.shift_start).total_seconds() / 3600 for shift in shifts
-        )
+        att_conditions = [StaffAttendance.staff_id == staff_id, StaffAttendance.branch_id == branch_id]
+        if date_from:
+            att_conditions.append(StaffAttendance.attendance_date >= date_from.date())
+        if date_to:
+            att_conditions.append(StaffAttendance.attendance_date <= date_to.date())
 
+        att_result = await self.session.execute(select(StaffAttendance).where(*att_conditions))
+        attendances = att_result.scalars().all()
+
+        scheduled_hours = sum((s.shift_end - s.shift_start).total_seconds() / 3600 for s in shifts)
         actual_hours = sum(
-            (att.checked_out_at - att.checked_in_at).total_seconds() / 3600
-            if att.checked_out_at
-            else 0
-            for att in attendances
+            (a.checked_out_at - a.checked_in_at).total_seconds() / 3600
+            if a.checked_out_at else 0
+            for a in attendances
         )
 
         return {

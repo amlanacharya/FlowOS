@@ -28,6 +28,12 @@ class MemberStatusEnum(str, Enum):
 class SubscriptionStatusEnum(str, Enum):
     ACTIVE = "active"
     EXPIRED = "expired"
+
+
+class ShiftTypeEnum(str, Enum):
+    REGULAR = "regular"
+    OVERTIME = "overtime"
+    TRAINING = "training"
     PAUSED = "paused"
     CANCELLED = "cancelled"
 
