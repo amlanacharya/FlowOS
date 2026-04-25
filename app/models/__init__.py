@@ -5,6 +5,7 @@ from .class_session import ClassSession
 from .class_type import ClassType
 from .lead import Lead
 from .member import Member
+from .member_feedback import MemberFeedback
 from .member_subscription import MemberSubscription
 from .membership_plan import MembershipPlan
 from .notification_log import NotificationLog
@@ -15,6 +16,7 @@ from .staff import Staff
 from .staff_attendance import StaffAttendance
 from .staff_shift import StaffShift
 from .user import User
+from .workout_log import WorkoutLog
 
 __all__ = [
     "Organization",
@@ -26,6 +28,7 @@ __all__ = [
     "RefreshToken",
     "Lead",
     "Member",
+    "MemberFeedback",
     "MembershipPlan",
     "MemberSubscription",
     "Payment",
@@ -34,4 +37,5 @@ __all__ = [
     "ClassSession",
     "ClassEnrollment",
     "Attendance",
+    "WorkoutLog",
 ]

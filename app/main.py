@@ -14,6 +14,7 @@ from app.routers import (
     branches,
     class_types,
     dashboard,
+    feedback,
     leads,
     members,
     notifications,
@@ -23,6 +24,8 @@ from app.routers import (
     sessions,
     staff,
     subscriptions,
+    trainer,
+    workouts,
 )
 
 
@@ -291,6 +294,9 @@ app.include_router(class_types.router, tags=["Class Types"])
 app.include_router(attendance.router, tags=["Attendance"])
 app.include_router(dashboard.router, tags=["Dashboard"])
 app.include_router(notifications.router, tags=["Notifications"])
+app.include_router(workouts.router, tags=["Workouts"])
+app.include_router(feedback.router, tags=["Feedback"])
+app.include_router(trainer.router, tags=["Trainer"])
 
 
 if __name__ == "__main__":

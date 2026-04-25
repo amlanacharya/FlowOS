@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-type Page = 'dashboard' | 'leads' | 'members' | 'payments' | 'settings'
+type Page = 'dashboard' | 'leads' | 'members' | 'payments' | 'staff-attendance' | 'engagement' | 'trainer' | 'settings'
 
 type Props = {
   currentPage: Page
@@ -53,6 +53,25 @@ function IconPayments() {
   )
 }
 
+function IconAttendance() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8 7V3m8 4V3" />
+      <rect x="3" y="5" width="18" height="16" rx="2" />
+      <path d="M3 11h18" />
+      <path d="m8 16 2 2 5-5" />
+    </svg>
+  )
+}
+
+function IconEngagement() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z" />
+    </svg>
+  )
+}
+
 function IconSettings() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
@@ -80,6 +99,9 @@ const navGroups: { label: string; items: { id: Page; label: string; icon: () => 
       { id: 'payments', label: 'Payments', icon: IconPayments },
       { id: 'members', label: 'Members', icon: IconMembers },
       { id: 'leads', label: 'Leads', icon: IconLeads },
+      { id: 'staff-attendance', label: 'Staff Attendance', icon: IconAttendance },
+      { id: 'engagement', label: 'Engagement', icon: IconEngagement },
+      { id: 'trainer', label: 'Trainer View', icon: IconAttendance },
     ],
   },
   {
@@ -119,17 +141,25 @@ export default function Sidebar({ currentPage, onNavigate, onLogout, userName, u
         {navGroups.map((group) => (
           <div key={group.label}>
             <div className="nav-section-label">{group.label}</div>
-            {group.items.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                className={`nav-item ${currentPage === item.id ? 'active' : ''}`}
-                onClick={() => onNavigate(item.id)}
-              >
-                <item.icon />
-                <span>{item.label}</span>
-              </button>
-            ))}
+            {group.items
+              .filter((item) => {
+                if (userRole === 'trainer') return ['trainer', 'engagement', 'settings'].includes(item.id)
+                if (item.id === 'trainer') return false
+                if (item.id === 'staff-attendance') return ['branch_manager', 'owner'].includes(userRole)
+                if (item.id === 'engagement') return ['branch_manager', 'owner', 'trainer'].includes(userRole)
+                return true
+              })
+              .map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`nav-item ${currentPage === item.id ? 'active' : ''}`}
+                  onClick={() => onNavigate(item.id)}
+                >
+                  <item.icon />
+                  <span>{item.label}</span>
+                </button>
+              ))}
           </div>
         ))}
       </nav>

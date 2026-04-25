@@ -7,12 +7,15 @@ import Sidebar from './components/Sidebar'
 import NoticeStack, { type Notice, type Tone } from './components/NoticeStack'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
+import EngagementPage from './pages/EngagementPage'
 import LeadsPage from './pages/LeadsPage'
 import MembersPage from './pages/MembersPage'
 import PaymentsPage from './pages/PaymentsPage'
 import SettingsPage from './pages/SettingsPage'
+import StaffAttendancePage from './pages/StaffAttendancePage'
+import TrainerDashboardPage from './pages/TrainerDashboardPage'
 
-type Page = 'dashboard' | 'leads' | 'members' | 'payments' | 'settings'
+type Page = 'dashboard' | 'leads' | 'members' | 'payments' | 'staff-attendance' | 'engagement' | 'trainer' | 'settings'
 
 const DEFAULT_API_BASE_URL = 'http://127.0.0.1:8000'
 
@@ -73,14 +76,14 @@ export default function App() {
         setAccessToken('')
         setRefreshToken('')
       })
-  }, [accessToken, apiBaseUrl])
+  }, [accessToken, apiBaseUrl, pushNotice])
 
   function handleLogin(at: string, rt: string, p: UserProfile) {
     setAccessToken(at)
     setRefreshToken(rt)
     setProfile(p)
     pushNotice('success', 'Signed in', `Welcome back, ${p.full_name}.`)
-    setCurrentPage('dashboard')
+    setCurrentPage(p.role === 'trainer' ? 'trainer' : 'dashboard')
   }
 
   function handleLogout() {
@@ -111,6 +114,7 @@ export default function App() {
   }
 
   const pageProps = { apiBaseUrl, accessToken, branchId, pushNotice }
+  const isTrainerOnly = profile?.role === 'trainer'
 
   return (
     <>
@@ -124,10 +128,21 @@ export default function App() {
           health={health}
         />
         <div className="content-area">
-          {currentPage === 'dashboard' && <DashboardPage {...pageProps} />}
+          {isTrainerOnly && currentPage !== 'trainer' ? (
+            <TrainerDashboardPage {...pageProps} />
+          ) : null}
+          {!isTrainerOnly && currentPage === 'dashboard' && <DashboardPage {...pageProps} />}
           {currentPage === 'leads'     && <LeadsPage     {...pageProps} />}
           {currentPage === 'members'   && <MembersPage   {...pageProps} />}
-          {currentPage === 'payments'  && <PaymentsPage  {...pageProps} />}
+          {!isTrainerOnly && currentPage === 'payments'  && <PaymentsPage  {...pageProps} />}
+          {currentPage === 'trainer' && <TrainerDashboardPage {...pageProps} />}
+          {currentPage === 'engagement' && <EngagementPage {...pageProps} />}
+          {currentPage === 'staff-attendance' && (
+            <StaffAttendancePage
+              {...pageProps}
+              currentStaffId={profile?.staff_id ?? ''}
+            />
+          )}
           {currentPage === 'settings'  && (
             <SettingsPage
               apiBaseUrl={apiBaseUrl}

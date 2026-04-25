@@ -90,6 +90,106 @@ export type QrCheckinResponse = {
   checked_in_at: string
 }
 
+export type StaffAttendance = {
+  id: string
+  staff_id: string
+  branch_id: string
+  checked_in_at: string
+  checked_out_at: string | null
+  attendance_date: string
+  notes: string | null
+}
+
+export type StaffAttendanceList = {
+  items: StaffAttendance[]
+  total: number
+}
+
+export type StaffShift = {
+  id: string
+  branch_id: string
+  staff_id: string
+  shift_date: string
+  shift_start: string
+  shift_end: string
+  shift_type: string
+  notes: string | null
+  created_at: string
+}
+
+export type StaffShiftCreate = {
+  shift_date: string
+  shift_start: string
+  shift_end: string
+  shift_type?: string
+  notes?: string
+}
+
+export type ShiftComparison = {
+  staff_id: string
+  scheduled_hours: number
+  actual_hours: number
+  difference: number
+  attendance_count: number
+}
+
+export type WorkoutLog = {
+  id: string
+  member_id: string
+  branch_id: string
+  workout_date: string
+  exercise_name: string
+  sets: number | null
+  reps: number | null
+  weight_kg: number | null
+  notes: string | null
+  logged_by_staff_id: string | null
+  created_at: string
+}
+
+export type WorkoutLogCreate = {
+  member_id: string
+  date?: string
+  exercise_name: string
+  sets?: number
+  reps?: number
+  weight_kg?: number
+  notes?: string
+}
+
+export type MemberFeedback = {
+  id: string
+  member_id: string
+  branch_id: string
+  rating: number
+  comment: string | null
+  submitted_at: string
+}
+
+export type FeedbackSummary = {
+  average_rating: number
+  total: number
+  recent: MemberFeedback[]
+}
+
+export type TrainerEnrollmentMember = {
+  enrollment_id: string
+  member_id: string
+  member_name: string
+  attended: boolean
+  cancelled: boolean
+}
+
+export type TrainerSession = {
+  session_id: string
+  class_type_id: string
+  scheduled_at: string
+  duration_minutes: number
+  capacity: number
+  enrolled_count: number
+  members: TrainerEnrollmentMember[]
+}
+
 export type Organization = {
   id: string
   name: string

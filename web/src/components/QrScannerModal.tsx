@@ -44,7 +44,7 @@ export function QrScannerModal({
           videoRef.current.srcObject = stream
           videoRef.current.play()
         }
-      } catch (err) {
+      } catch {
         setCameraError('Camera access denied or unavailable. Use manual entry instead.')
       }
     }
@@ -89,7 +89,7 @@ export function QrScannerModal({
           setManualCode('')
         }, 3000)
       }
-    } catch (err) {
+    } catch {
       pushNotice('error', 'Network error', 'Failed to complete check-in')
     } finally {
       setLoading(false)

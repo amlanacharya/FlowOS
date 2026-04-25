@@ -1,4 +1,4 @@
-import { type FormEvent, useDeferredValue, useEffect, useState } from 'react'
+import { type FormEvent, useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { apiFetch } from '../api'
 import type { Member, MemberCreate, QrCheckinResponse } from '../types'
 import { errorMessage, formatDate, formatRole } from '../utils'
@@ -36,9 +36,9 @@ export default function MembersPage({ apiBaseUrl, accessToken, branchId, pushNot
   const [submitting, setSubmitting] = useState(false)
 
   const deferredSearch = useDeferredValue(search.trim().toLowerCase())
-  const query = branchId ? { branch_id: branchId } : undefined
+  const query = useMemo(() => (branchId ? { branch_id: branchId } : undefined), [branchId])
 
-  async function fetchMembers() {
+  const fetchMembers = useCallback(async () => {
     try {
       const data = await apiFetch<Member[]>(apiBaseUrl, '/api/v1/members', { token: accessToken, query })
       setMembers(data)
@@ -47,11 +47,11 @@ export default function MembersPage({ apiBaseUrl, accessToken, branchId, pushNot
     } finally {
       setLoading(false)
     }
-  }
+  }, [accessToken, apiBaseUrl, pushNotice, query])
 
   useEffect(() => {
     void fetchMembers()
-  }, [accessToken, apiBaseUrl, branchId])
+  }, [fetchMembers])
 
   const filtered = members.filter((member) => {
     if (filterStatus && member.status !== filterStatus) return false

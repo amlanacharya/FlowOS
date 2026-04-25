@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { Notice } from './NoticeStack'
 
 type Props = {
@@ -16,14 +16,9 @@ export function PushNotificationSettings({
 }: Props) {
   const [optedIn, setOptedIn] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const [isSupported, setIsSupported] = useState(false)
+  const [isSupported] = useState(() => 'serviceWorker' in navigator && 'PushManager' in window)
 
-  useEffect(() => {
-    setIsSupported('serviceWorker' in navigator && 'PushManager' in window)
-    checkStatus()
-  }, [memberId])
-
-  async function checkStatus() {
+  const checkStatus = useCallback(async () => {
     try {
       const response = await fetch(
         `${apiBaseUrl}/api/v1/members/${memberId}/push-status`,
@@ -34,7 +29,11 @@ export function PushNotificationSettings({
     } catch (err) {
       console.error('Failed to check push status:', err)
     }
-  }
+  }, [accessToken, apiBaseUrl, memberId])
+
+  useEffect(() => {
+    void checkStatus()
+  }, [checkStatus])
 
   async function handleSubscribe() {
     if (!isSupported) {
@@ -47,7 +46,7 @@ export function PushNotificationSettings({
       const registration = await navigator.serviceWorker.ready
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: process.env.REACT_APP_VAPID_PUBLIC_KEY,
+        applicationServerKey: import.meta.env.VITE_VAPID_PUBLIC_KEY,
       })
 
       const response = await fetch(

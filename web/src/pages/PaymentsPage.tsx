@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useState } from 'react'
+import { type FormEvent, useEffect, useMemo, useState } from 'react'
 import { apiFetch } from '../api'
 import type { DuesReport, PaymentSummary, RevenueBreakdown } from '../types'
 import { errorMessage, formatCurrency, formatDate } from '../utils'
@@ -44,7 +44,7 @@ export default function PaymentsPage({ apiBaseUrl, accessToken, branchId, pushNo
     notes: '',
   })
 
-  const query = branchId ? { branch_id: branchId } : undefined
+  const query = useMemo(() => (branchId ? { branch_id: branchId } : undefined), [branchId])
 
   useEffect(() => {
     void Promise.allSettled([
@@ -67,7 +67,7 @@ export default function PaymentsPage({ apiBaseUrl, accessToken, branchId, pushNo
 
       setLoading(false)
     })
-  }, [accessToken, apiBaseUrl, branchId, pushNotice])
+  }, [accessToken, apiBaseUrl, query, pushNotice])
 
   const mtdRevenue = revenue.reduce((sum, point) => sum + Number(point.amount), 0)
   const membersById = new Map(members.map((member) => [member.id, member.full_name]))

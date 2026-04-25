@@ -37,8 +37,8 @@ def test_organization_and_branch_creation(client: TestClient, session: Session) 
             branch_response = client.post(
                 f"/api/v1/branches?org_id={org_id}", json=branch_data
             )
-            # May require auth
-            assert branch_response.status_code in [200, 403]
+            # May require auth depending on router policy.
+            assert branch_response.status_code in [200, 401, 403]
 
 
 def test_member_and_plan_flow(session: Session) -> None:

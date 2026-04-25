@@ -65,53 +65,6 @@ async def list_staff(
     return staff_list
 
 
-@router.get("/{staff_id}", response_model=StaffResponse)
-async def get_staff(
-    staff_id: UUID,
-    claims: dict = Depends(require_roles(RoleEnum.OWNER, RoleEnum.BRANCH_MANAGER)),
-    session: AsyncSession = Depends(get_session),
-) -> StaffResponse:
-    staff = await session.get(Staff, staff_id)
-    if not staff:
-        raise ResourceNotFoundException()
-    return staff
-
-
-@router.patch("/{staff_id}", response_model=StaffResponse)
-async def update_staff(
-    staff_id: UUID,
-    staff_update: StaffCreate,
-    claims: dict = Depends(require_roles(RoleEnum.OWNER, RoleEnum.BRANCH_MANAGER)),
-    session: AsyncSession = Depends(get_session),
-) -> StaffResponse:
-    staff = await session.get(Staff, staff_id)
-    if not staff:
-        raise ResourceNotFoundException()
-    for key, value in staff_update.dict(exclude_unset=True).items():
-        if key not in ["email", "password"]:
-            setattr(staff, key, value)
-    staff.updated_at = datetime.utcnow()
-    session.add(staff)
-    await session.commit()
-    await session.refresh(staff)
-    return staff
-
-
-@router.delete("/{staff_id}")
-async def delete_staff(
-    staff_id: UUID,
-    claims: dict = Depends(require_roles(RoleEnum.OWNER)),
-    session: AsyncSession = Depends(get_session),
-) -> dict:
-    staff = await session.get(Staff, staff_id)
-    if not staff:
-        raise ResourceNotFoundException()
-    staff.is_active = False
-    session.add(staff)
-    await session.commit()
-    return {"message": "Staff deactivated"}
-
-
 # Attendance endpoints
 @router.post("/checkin", response_model=StaffCheckinResponse)
 async def staff_checkin(
@@ -256,6 +209,32 @@ async def list_shifts(
     }
 
 
+@router.get("/shifts/{staff_id}/comparison", response_model=ShiftComparisonResponse)
+async def compare_shifts(
+    staff_id: UUID,
+    date_from: str = Query(None),
+    date_to: str = Query(None),
+    claims: dict = Depends(require_roles(RoleEnum.BRANCH_MANAGER, RoleEnum.OWNER)),
+    branch_id: UUID = Depends(get_branch_scope),
+    session: AsyncSession = Depends(get_session),
+) -> ShiftComparisonResponse:
+    """Compare scheduled vs actual hours."""
+    from datetime import datetime
+
+    date_from_obj = datetime.fromisoformat(date_from) if date_from else None
+    date_to_obj = datetime.fromisoformat(date_to) if date_to else None
+
+    service = StaffShiftService(session)
+    result = await service.compare_shifts(
+        branch_id=branch_id,
+        staff_id=staff_id,
+        date_from=date_from_obj,
+        date_to=date_to_obj,
+    )
+
+    return ShiftComparisonResponse(**result)
+
+
 @router.get("/shifts/{shift_id}", response_model=StaffShiftResponse)
 async def get_shift(
     shift_id: UUID,
@@ -308,27 +287,48 @@ async def delete_shift(
     return {"message": "Shift deleted"}
 
 
-@router.get("/shifts/{staff_id}/comparison", response_model=ShiftComparisonResponse)
-async def compare_shifts(
+@router.get("/{staff_id}", response_model=StaffResponse)
+async def get_staff(
     staff_id: UUID,
-    date_from: str = Query(None),
-    date_to: str = Query(None),
-    claims: dict = Depends(require_roles(RoleEnum.BRANCH_MANAGER, RoleEnum.OWNER)),
-    branch_id: UUID = Depends(get_branch_scope),
+    claims: dict = Depends(require_roles(RoleEnum.OWNER, RoleEnum.BRANCH_MANAGER)),
     session: AsyncSession = Depends(get_session),
-) -> ShiftComparisonResponse:
-    """Compare scheduled vs actual hours."""
-    from datetime import datetime
+) -> StaffResponse:
+    staff = await session.get(Staff, staff_id)
+    if not staff:
+        raise ResourceNotFoundException()
+    return staff
 
-    date_from_obj = datetime.fromisoformat(date_from) if date_from else None
-    date_to_obj = datetime.fromisoformat(date_to) if date_to else None
 
-    service = StaffShiftService(session)
-    result = await service.compare_shifts(
-        branch_id=branch_id,
-        staff_id=staff_id,
-        date_from=date_from_obj,
-        date_to=date_to_obj,
-    )
+@router.patch("/{staff_id}", response_model=StaffResponse)
+async def update_staff(
+    staff_id: UUID,
+    staff_update: StaffCreate,
+    claims: dict = Depends(require_roles(RoleEnum.OWNER, RoleEnum.BRANCH_MANAGER)),
+    session: AsyncSession = Depends(get_session),
+) -> StaffResponse:
+    staff = await session.get(Staff, staff_id)
+    if not staff:
+        raise ResourceNotFoundException()
+    for key, value in staff_update.dict(exclude_unset=True).items():
+        if key not in ["email", "password"]:
+            setattr(staff, key, value)
+    staff.updated_at = datetime.utcnow()
+    session.add(staff)
+    await session.commit()
+    await session.refresh(staff)
+    return staff
 
-    return ShiftComparisonResponse(**result)
+
+@router.delete("/{staff_id}")
+async def delete_staff(
+    staff_id: UUID,
+    claims: dict = Depends(require_roles(RoleEnum.OWNER)),
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    staff = await session.get(Staff, staff_id)
+    if not staff:
+        raise ResourceNotFoundException()
+    staff.is_active = False
+    session.add(staff)
+    await session.commit()
+    return {"message": "Staff deactivated"}
