@@ -1,3 +1,4 @@
+import asyncio
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from uuid import UUID
@@ -24,6 +25,14 @@ class ReportService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
+    def _date_to_datetime_range(self, from_date: date, to_date: date = None) -> tuple[datetime, datetime]:
+        """Convert date range to datetime range (start of day to end of day)."""
+        if to_date is None:
+            to_date = from_date
+        start = datetime.combine(from_date, datetime.min.time())
+        end = datetime.combine(to_date, datetime.max.time())
+        return start, end
+
     async def daily_sales(self, branch_id: UUID, report_date: date) -> DailySalesReport:
         payments = await self.session.execute(
             select(Payment.mode, func.sum(Payment.amount))
@@ -33,8 +42,7 @@ class ReportService:
         collection_by_mode = {mode.value if hasattr(mode, "value") else str(mode): amount or Decimal("0") for mode, amount in payments.all()}
         total_collection = sum(collection_by_mode.values(), Decimal("0"))
 
-        start = datetime.combine(report_date, datetime.min.time())
-        end = datetime.combine(report_date, datetime.max.time())
+        start, end = self._date_to_datetime_range(report_date)
         new_members = await self._count(Member.id, Member.branch_id == branch_id, Member.created_at >= start, Member.created_at <= end)
         renewals = await self._count(MemberSubscription.id, MemberSubscription.branch_id == branch_id, MemberSubscription.created_at >= start, MemberSubscription.created_at <= end)
         converted = await self._count(Lead.id, Lead.branch_id == branch_id, Lead.status == LeadStatusEnum.CONVERTED, Lead.updated_at >= start, Lead.updated_at <= end)
@@ -59,17 +67,27 @@ class ReportService:
             )
         )
         expired_rows = expired_result.all()
+        total_expired = len(expired_rows)
+
+        if total_expired == 0:
+            return RetentionReport(
+                total_expired=0,
+                not_renewed_within_30d=0,
+                churn_rate=0.0,
+                at_risk_members=[],
+            )
+
         at_risk: list[AtRiskMember] = []
         today = date.today()
+
         for subscription, member in expired_rows:
-            renewed_result = await self.session.execute(
-                select(func.count(MemberSubscription.id)).where(
-                    MemberSubscription.member_id == subscription.member_id,
-                    MemberSubscription.start_date > subscription.end_date,
-                    MemberSubscription.start_date <= subscription.end_date + timedelta(days=30),
-                )
+            renewed_count = await self._count(
+                MemberSubscription.id,
+                MemberSubscription.member_id == subscription.member_id,
+                MemberSubscription.start_date > subscription.end_date,
+                MemberSubscription.start_date <= subscription.end_date + timedelta(days=30),
             )
-            if (renewed_result.scalar() or 0) == 0:
+            if renewed_count == 0:
                 at_risk.append(
                     AtRiskMember(
                         member_id=member.id,
@@ -78,7 +96,7 @@ class ReportService:
                         days_since_expiry=max((today - subscription.end_date).days, 0),
                     )
                 )
-        total_expired = len(expired_rows)
+
         return RetentionReport(
             total_expired=total_expired,
             not_renewed_within_30d=len(at_risk),
@@ -87,8 +105,7 @@ class ReportService:
         )
 
     async def trainer_performance(self, branch_id: UUID, date_from: date, date_to: date) -> list[TrainerPerformanceRow]:
-        start = datetime.combine(date_from, datetime.min.time())
-        end = datetime.combine(date_to, datetime.max.time())
+        start, end = self._date_to_datetime_range(date_from, date_to)
         result = await self.session.execute(
             select(ClassSession, Staff, User)
             .join(Staff, Staff.id == ClassSession.trainer_staff_id)
@@ -115,15 +132,19 @@ class ReportService:
 
     async def revenue_forecast(self, branch_id: UUID) -> RevenueForecast:
         today = date.today()
+        next_30, next_60, next_90 = await asyncio.gather(
+            self._renewal_window(branch_id, today, today + timedelta(days=30)),
+            self._renewal_window(branch_id, today, today + timedelta(days=60)),
+            self._renewal_window(branch_id, today, today + timedelta(days=90)),
+        )
         return RevenueForecast(
-            next_30_days=await self._renewal_window(branch_id, today, today + timedelta(days=30)),
-            next_60_days=await self._renewal_window(branch_id, today, today + timedelta(days=60)),
-            next_90_days=await self._renewal_window(branch_id, today, today + timedelta(days=90)),
+            next_30_days=next_30,
+            next_60_days=next_60,
+            next_90_days=next_90,
         )
 
     async def peak_hours(self, branch_id: UUID, date_from: date, date_to: date) -> list[PeakHourBucket]:
-        start = datetime.combine(date_from, datetime.min.time())
-        end = datetime.combine(date_to, datetime.max.time())
+        start, end = self._date_to_datetime_range(date_from, date_to)
         rows = await self.session.execute(
             select(func.extract("hour", Attendance.checked_in_at), func.count(Attendance.id))
             .where(
@@ -139,16 +160,23 @@ class ReportService:
 
     async def monthly_revenue(self, branch_id: UUID, months: int = 12) -> list[MonthlyRevenue]:
         start = date.today().replace(day=1) - timedelta(days=31 * max(months - 1, 0))
-        rows = await self.session.execute(select(Payment).where(Payment.branch_id == branch_id, Payment.payment_date >= start))
-        buckets: dict[str, dict[str, Decimal | int]] = {}
-        for payment in rows.scalars().all():
-            month = payment.payment_date.strftime("%Y-%m")
-            bucket = buckets.setdefault(month, {"total": Decimal("0"), "count": 0})
-            bucket["total"] = bucket["total"] + payment.amount
-            bucket["count"] = int(bucket["count"]) + 1
+        rows = await self.session.execute(
+            select(
+                func.date_trunc("month", Payment.payment_date).label("month"),
+                func.sum(Payment.amount).label("total"),
+                func.count(Payment.id).label("count"),
+            )
+            .where(Payment.branch_id == branch_id, Payment.payment_date >= start)
+            .group_by(func.date_trunc("month", Payment.payment_date))
+            .order_by(func.date_trunc("month", Payment.payment_date))
+        )
         return [
-            MonthlyRevenue(month=month, total_revenue=data["total"], payment_count=int(data["count"]))
-            for month, data in sorted(buckets.items())
+            MonthlyRevenue(
+                month=month.strftime("%Y-%m"),
+                total_revenue=total or Decimal("0"),
+                payment_count=int(count or 0),
+            )
+            for month, total, count in rows.all()
         ]
 
     async def _renewal_window(self, branch_id: UUID, start: date, end: date) -> RevenueWindow:
