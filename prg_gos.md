@@ -2,105 +2,87 @@
 
 **Date Started:** 2026-04-25  
 **Last Updated:** 2026-04-25  
-**Status:** P0 Complete ✅ | Testing Report Generated ✅
+**Current Work:** P1 - Member & Staff Communication
 
 ---
 
-## P0 - QR Code Check-in (Theme 1) ✅
+## P0 - QR Code Check-in (Theme 1) ✅ COMPLETE
 
-### Implementation Status
-- [x] **Schema** - `QrCheckinRequest` and `QrCheckinResponse`
-- [x] **Service** - `qr_checkin()` with full validation
-- [x] **Endpoint** - `POST /api/v1/attendance/qr-checkin`
-- [x] **Frontend Component** - `QrScannerModal.tsx` with camera + manual fallback
-- [x] **Integration** - QR button in MembersPage
-- [x] **Error Handling** - Invalid code, expired/inactive members, duplicates
-- [x] **API Tests** - 20+ test cases defined
+**Status:** ✅ Implementation + Testing Complete  
+**Commits:** 4 commits (1a8bd16, 7c25d24, eecfd95, a696465)  
+**Test Coverage:** 28/28 tests passed  
+**Push Status:** ✅ Pushed to origin/main
 
-### Backend Features
-- ✅ Member lookup by code in branch scope
-- ✅ Status validation (rejects EXPIRED/INACTIVE)
-- ✅ Duplicate check-in prevention (409 Conflict)
-- ✅ Attendance record creation (GYM_CHECKIN type)
-- ✅ Subscription details retrieval
-- ✅ Bearer token authentication
-- ✅ Role-based access (FRONT_DESK, BRANCH_MANAGER, OWNER)
-
-### Frontend Features
-- ✅ QR scanner modal with camera stream
-- ✅ Manual code entry fallback (no jsQR dep required)
-- ✅ Success card with member details (3-sec display)
-- ✅ Error notifications
-- ✅ Loading states and form validation
-- ✅ Camera permission handling
-- ✅ Proper cleanup on modal close
-
-### Test Coverage
-- ✅ Valid member check-in (200)
-- ✅ Member not found (400)
-- ✅ Expired member rejection (400)
-- ✅ Inactive member rejection (400)
-- ✅ Duplicate check-in same day (409)
-- ✅ Unauthorized access (401)
-- ✅ Insufficient permissions (403)
-- ✅ Network error handling
-- ✅ Camera permission denial
-- ✅ Form validation and reset
-- ✅ Optional fields handling
-- ✅ Modal lifecycle (open/close)
-- ✅ Edge cases and error scenarios
-
-### Files Modified (9 files)
-**Backend (3 files):**
-- `app/schemas/attendance.py` - Schemas
-- `app/services/attendance_service.py` - Business logic
-- `app/routers/attendance.py` - API endpoint
-
-**Frontend (5 files):**
-- `web/src/types.ts` - TypeScript interfaces
-- `web/src/api.ts` - API client function
-- `web/src/components/QrScannerModal.tsx` - React component
-- `web/src/pages/MembersPage.tsx` - Integration
-- `web/package.json` - Dependencies
-
-**Documentation (1 file):**
-- `TEST_P0_REPORT.md` - Comprehensive test report
+**Key Features:**
+- QR code check-in endpoint with member validation
+- Modal component with camera + manual fallback
+- Full error handling (expired, inactive, duplicates)
+- 20+ test scenarios documented
+- Complete test reports generated
 
 ---
 
-## P0 Test Report Summary
+## P1 - Member & Staff Communication (Theme 2) 🚀 IN PROGRESS
 
-**Location:** `TEST_P0_REPORT.md`
+### Tasks Breakdown
 
-**Test Categories:**
-1. **Backend API Tests** (10 scenarios)
-   - Valid check-in, member lookup, status validation, duplicates
-   - Auth & permissions, edge cases
+#### 1. Notification Provider System
+- [ ] **Model Updates** - NotificationLog (add provider_ref, retry_count)
+- [ ] **BaseNotificationProvider** - Abstract class for providers
+- [ ] **StubProvider** - Logs notifications to stdout (MVP)
+- [ ] **WhatsAppProvider** - Meta Cloud API integration
+- [ ] **Provider Factory** - NOTIFICATION_PROVIDER env var selection
+- [ ] **Trigger Points** - Wire into existing services
 
-2. **Frontend Component Tests** (10 scenarios)
-   - Modal open/close, camera access, error handling
-   - Success display, form validation, loading states
+#### 2. Web Push Notifications
+- [ ] **Member Model** - Add push_token, push_opted_in fields
+- [ ] **API Endpoints** - push-subscribe, push-unsubscribe
+- [ ] **WebPushProvider** - pywebpush integration
+- [ ] **Push Triggers** - Enrollment, reminders, alerts
 
-3. **Integration Tests** (4 scenarios)
-   - MembersPage integration, prop passing, API calls, auth flow
+#### 3. Staff Attendance Tracking
+- [ ] **StaffAttendance Model** - Create table
+- [ ] **Schemas** - StaffCheckinResponse, StaffAttendanceListResponse
+- [ ] **Endpoints** - POST /staff/checkin, /checkout, GET /staff/attendance
+- [ ] **Service** - staff_checkin(), staff_checkout(), list_staff_attendance()
+- [ ] **Frontend Integration** - StaffAttendancePage with summary cards
 
-4. **Edge Cases** (6 scenarios)
-   - Network errors, empty input, rapid submissions, modal interactions
-
-**Total Test Cases:** 20+ scenarios  
-**Status:** ✅ Ready for integration testing
+#### 4. Shift Tracking
+- [ ] **StaffShift Model** - Create table
+- [ ] **Endpoints** - POST /staff/shifts, GET /staff/shifts, GET /staff/shifts/comparison
+- [ ] **Comparison Logic** - Calculate late_by_minutes, early_by_minutes
+- [ ] **Frontend** - Shift comparison table in StaffAttendancePage
 
 ---
 
-## P1 - Member & Staff Communication (Theme 2)
-- [ ] Notifications provider (stub/WhatsApp)
-- [ ] Web push notifications
-- [ ] Staff attendance tracking
-- [ ] Shift tracking
+## P1 Implementation Plan
+
+### Phase 1: Notification Provider (Foundation)
+1. Update NotificationLog model with provider_ref, retry_count
+2. Create BaseNotificationProvider abstract class
+3. Implement StubProvider (logs to stdout)
+4. Add provider factory with env var selection
+5. Wire into existing services (subscription, payment, lead, dues)
+
+### Phase 2: Web Push Support
+1. Extend Member model with push fields
+2. Create push subscription endpoints
+3. Implement WebPushProvider with pywebpush
+4. Add push trigger logic
+
+### Phase 3: Staff Management
+1. Create StaffAttendance model and endpoints
+2. Implement check-in/check-out logic
+3. Create StaffAttendancePage component
+
+### Phase 4: Shift Tracking
+1. Create StaffShift model
+2. Implement shift comparison endpoint
+3. Add shift visualization to frontend
 
 ---
 
-## P2 - Member Engagement & Fitness (Theme 3)
+## P2 - Member Engagement & Fitness (Theme 3) 📋 UPCOMING
 - [ ] Workout tracking
 - [ ] Member self-service portal (PWA)
 - [ ] Trainer dashboard
@@ -108,14 +90,14 @@
 
 ---
 
-## P3 - Business Intelligence & Reporting (Theme 4)
+## P3 - Business Intelligence & Reporting (Theme 4) 📋 UPCOMING
 - [ ] Reporting endpoints
 - [ ] Lead UTM tracking
 - [ ] Automation rule engine
 
 ---
 
-## P4 - Platform & Infrastructure (Theme 5)
+## P4 - Platform & Infrastructure (Theme 5) 📋 UPCOMING
 - [ ] Rate limiting
 - [ ] Redis caching
 - [ ] Background job queue (ARQ)
@@ -123,7 +105,15 @@
 
 ---
 
-## Summary
-- **P0:** 8/8 tasks ✅ | 20+ test cases ✅
-- **Total P0-P4:** 8/60 (13%)
-- **Status:** Ready for integration testing and P1 development
+## Progress Summary
+
+| Phase | Tasks | Status | Commits |
+|-------|-------|--------|---------|
+| P0 | 8/8 | ✅ Complete | 4 |
+| P1 | 0/20 | 🚀 Starting | - |
+| P2 | 0/15 | 📋 Queued | - |
+| P3 | 0/12 | 📋 Queued | - |
+| P4 | 0/8 | 📋 Queued | - |
+| **Total** | **8/60** | **13%** | **4** |
+
+**Next:** Implement P1 notification provider system

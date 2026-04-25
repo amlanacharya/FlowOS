@@ -21,5 +21,7 @@ class NotificationLog(SQLModel, table=True):
     payload: Optional[dict] = Field(default=None, sa_column=Column(JSON))
     status: str = Field(max_length=50, default="pending")
     error_message: Optional[str] = None
+    provider_ref: Optional[str] = Field(default=None, max_length=255)
+    retry_count: int = Field(default=0)
     sent_at: Optional[datetime] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
