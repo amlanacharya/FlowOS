@@ -2,9 +2,14 @@ import json
 import os
 from typing import Optional
 
-from pywebpush import webpush
-
 from .base import BaseNotificationProvider
+
+try:
+    from pywebpush import webpush
+    PYWEBPUSH_AVAILABLE = True
+except ImportError:
+    PYWEBPUSH_AVAILABLE = False
+    webpush = None
 
 
 class WebPushProvider(BaseNotificationProvider):
@@ -34,6 +39,9 @@ class WebPushProvider(BaseNotificationProvider):
         Returns:
             Message ID from push service or subscription endpoint
         """
+        if not PYWEBPUSH_AVAILABLE:
+            raise RuntimeError("pywebpush not installed. Run: pip install pywebpush")
+
         if not self.vapid_private_key or not self.vapid_public_key:
             raise ValueError("VAPID keys not configured for web push")
 
