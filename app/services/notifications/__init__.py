@@ -9,14 +9,18 @@ from app.models import NotificationLog
 from .base import BaseNotificationProvider
 from .stub import StubProvider
 from .whatsapp import WhatsAppProvider
+from .webpush import WebPushProvider
 
 
-def get_provider() -> BaseNotificationProvider:
-    """Get notification provider based on environment variable."""
-    provider_name = os.environ.get("NOTIFICATION_PROVIDER", "stub").lower()
+def get_provider(provider_name: str = None) -> BaseNotificationProvider:
+    """Get notification provider based on environment variable or parameter."""
+    if not provider_name:
+        provider_name = os.environ.get("NOTIFICATION_PROVIDER", "stub").lower()
 
     if provider_name == "whatsapp":
         return WhatsAppProvider()
+    elif provider_name == "webpush":
+        return WebPushProvider()
     else:
         return StubProvider()
 
@@ -43,13 +47,13 @@ async def dispatch_notification(
         branch_id: Branch UUID
         recipient_type: Type of recipient ('member', 'staff', etc.)
         recipient_id: UUID of recipient
-        to_phone: Phone number in E.164 format
+        to_phone: Phone number in E.164 format or push token
         channel: Notification channel (e.g., 'whatsapp', 'web_push')
         event_type: Event that triggered notification
         template_name: Template to use for message
         params: Parameters for template substitution
     """
-    provider = get_provider()
+    provider = get_provider(channel.lower() if "push" in channel.lower() else None)
 
     try:
         # Send notification

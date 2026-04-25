@@ -32,6 +32,9 @@ class Member(SQLModel, table=True):
     joined_at: date = Field(default_factory=date.today)
     profile_photo_url: Optional[str] = None
     notes: Optional[str] = None
+    push_token: Optional[str] = Field(default=None, max_length=500)
+    push_opted_in: bool = Field(default=False)
+    push_token_updated_at: Optional[datetime] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 

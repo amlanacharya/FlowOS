@@ -8,6 +8,7 @@ from app.core.enums import MemberStatusEnum, RoleEnum
 from app.core.exceptions import ResourceNotFoundException
 from app.database import get_session
 from app.deps import get_branch_scope, require_roles
+from app.models import Member
 from app.schemas.member import MemberCreate, MemberDetailResponse, MemberResponse, MemberUpdate
 from app.services.member_service import MemberService
 
@@ -89,3 +90,62 @@ async def activate_member(
     if not member:
         raise ResourceNotFoundException()
     return member
+
+
+# Push Notification endpoints
+@router.post("/{member_id}/push-subscribe")
+async def push_subscribe(
+    member_id: UUID,
+    data: dict,
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """Subscribe member to web push notifications."""
+    from datetime import datetime
+    from sqlmodel import select
+
+    member = await session.get(Member, member_id)
+    if not member:
+        raise ResourceNotFoundException()
+
+    member.push_token = str(data.get("token"))
+    member.push_opted_in = True
+    member.push_token_updated_at = datetime.utcnow()
+    session.add(member)
+    await session.commit()
+
+    return {"status": "subscribed", "member_id": str(member_id)}
+
+
+@router.post("/{member_id}/push-unsubscribe")
+async def push_unsubscribe(
+    member_id: UUID,
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """Unsubscribe member from web push notifications."""
+    member = await session.get(Member, member_id)
+    if not member:
+        raise ResourceNotFoundException()
+
+    member.push_token = None
+    member.push_opted_in = False
+    session.add(member)
+    await session.commit()
+
+    return {"status": "unsubscribed", "member_id": str(member_id)}
+
+
+@router.get("/{member_id}/push-status")
+async def push_status(
+    member_id: UUID,
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """Get member push notification status."""
+    member = await session.get(Member, member_id)
+    if not member:
+        raise ResourceNotFoundException()
+
+    return {
+        "opted_in": member.push_opted_in,
+        "token_valid": bool(member.push_token),
+        "last_updated": member.push_token_updated_at,
+    }
