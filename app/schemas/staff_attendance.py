@@ -17,9 +17,9 @@ class StaffCheckinResponse(SQLModel):
     id: UUID
     staff_id: UUID
     branch_id: UUID
-    check_in: datetime
-    check_out: Optional[datetime]
-    date: date
+    checked_in_at: datetime
+    checked_out_at: Optional[datetime]
+    attendance_date: date
     notes: Optional[str]
 
 

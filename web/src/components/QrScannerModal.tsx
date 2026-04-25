@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { QrCheckinResponse } from '../types'
+import type { QrCheckinResponse } from '../types'
 
-type PushNoticeFn = (tone: 'success' | 'error' | 'info' | 'warning', message: string) => void
+type PushNoticeFn = (tone: 'success' | 'error' | 'info' | 'warning', title: string, detail: string) => void
 
 type Props = {
   open: boolean
@@ -78,11 +78,11 @@ export function QrScannerModal({
       const data = await response.json()
 
       if (!response.ok) {
-        pushNotice('error', data.detail || 'Check-in failed')
+        pushNotice('error', 'Check-in failed', data.detail || '')
       } else {
         setSuccess(data)
         onSuccess(data)
-        pushNotice('success', `${data.member_name} checked in`)
+        pushNotice('success', 'Check-in successful', `${data.member_name} has been checked in`)
 
         setTimeout(() => {
           setSuccess(null)
@@ -90,7 +90,7 @@ export function QrScannerModal({
         }, 3000)
       }
     } catch (err) {
-      pushNotice('error', 'Network error during check-in')
+      pushNotice('error', 'Network error', 'Failed to complete check-in')
     } finally {
       setLoading(false)
     }

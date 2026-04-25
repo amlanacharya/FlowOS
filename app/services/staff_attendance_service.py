@@ -25,8 +25,8 @@ class StaffAttendanceService:
         statement = (
             select(StaffAttendance)
             .where(StaffAttendance.staff_id == staff_id)
-            .where(StaffAttendance.date == date.today())
-            .where(StaffAttendance.check_out == None)
+            .where(StaffAttendance.attendance_date == date.today())
+            .where(StaffAttendance.checked_out_at == None)
         )
         result = await self.session.execute(statement)
         existing = result.scalars().first()
@@ -54,8 +54,8 @@ class StaffAttendanceService:
         statement = (
             select(StaffAttendance)
             .where(StaffAttendance.staff_id == staff_id)
-            .where(StaffAttendance.date == date.today())
-            .where(StaffAttendance.check_out == None)
+            .where(StaffAttendance.attendance_date == date.today())
+            .where(StaffAttendance.checked_out_at == None)
         )
         result = await self.session.execute(statement)
         attendance = result.scalars().first()
@@ -63,7 +63,7 @@ class StaffAttendanceService:
         if not attendance:
             return None
 
-        attendance.check_out = datetime.utcnow()
+        attendance.checked_out_at = datetime.utcnow()
         if notes:
             attendance.notes = notes
         self.session.add(attendance)
@@ -89,10 +89,10 @@ class StaffAttendanceService:
             statement = statement.where(StaffAttendance.staff_id == staff_id)
 
         if date_from:
-            statement = statement.where(StaffAttendance.date >= date_from)
+            statement = statement.where(StaffAttendance.attendance_date >= date_from)
 
         if date_to:
-            statement = statement.where(StaffAttendance.date <= date_to)
+            statement = statement.where(StaffAttendance.attendance_date <= date_to)
 
         # Get total count
         count_statement = select(StaffAttendance).where(
@@ -101,14 +101,14 @@ class StaffAttendanceService:
         if staff_id:
             count_statement = count_statement.where(StaffAttendance.staff_id == staff_id)
         if date_from:
-            count_statement = count_statement.where(StaffAttendance.date >= date_from)
+            count_statement = count_statement.where(StaffAttendance.attendance_date >= date_from)
         if date_to:
-            count_statement = count_statement.where(StaffAttendance.date <= date_to)
+            count_statement = count_statement.where(StaffAttendance.attendance_date <= date_to)
 
         count_result = await self.session.execute(count_statement)
         total = len(count_result.scalars().all())
 
-        statement = statement.order_by(StaffAttendance.check_in.desc()).offset(skip).limit(limit)
+        statement = statement.order_by(StaffAttendance.checked_in_at.desc()).offset(skip).limit(limit)
         result = await self.session.execute(statement)
         return result.scalars().all(), total
 
@@ -120,7 +120,7 @@ class StaffAttendanceService:
         present_statement = (
             select(StaffAttendance)
             .where(StaffAttendance.branch_id == branch_id)
-            .where(StaffAttendance.date == today)
+            .where(StaffAttendance.attendance_date == today)
         )
         present_result = await self.session.execute(present_statement)
         present_count = len(present_result.scalars().all())
@@ -129,8 +129,8 @@ class StaffAttendanceService:
         checked_in_statement = (
             select(StaffAttendance)
             .where(StaffAttendance.branch_id == branch_id)
-            .where(StaffAttendance.date == today)
-            .where(StaffAttendance.check_out == None)
+            .where(StaffAttendance.attendance_date == today)
+            .where(StaffAttendance.checked_out_at == None)
         )
         checked_in_result = await self.session.execute(checked_in_statement)
         checked_in_count = len(checked_in_result.scalars().all())

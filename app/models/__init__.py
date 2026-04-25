@@ -12,6 +12,7 @@ from .organization import Organization
 from .payment import Payment
 from .refresh_token import RefreshToken
 from .staff import Staff
+from .staff_attendance import StaffAttendance
 from .user import User
 
 __all__ = [
@@ -19,6 +20,7 @@ __all__ = [
     "Branch",
     "User",
     "Staff",
+    "StaffAttendance",
     "RefreshToken",
     "Lead",
     "Member",
