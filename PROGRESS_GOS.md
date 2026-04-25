@@ -35,22 +35,15 @@
   - dues_overdue
   - class_enrolled
 
-## Current Work: P1 Phase 4 - Shift Tracking
+### P1 Phase 4: Staff Shift Tracking ✓
+- StaffShift model (shift_date, shift_start, shift_end, shift_type, notes)
+- StaffShiftService with full CRUD + overlap detection
+- 6 API endpoints for shift management
+- Shift comparison: scheduled vs actual hours from attendance
+- Overlap prevention: prevents double-booking
+- Branch scoped with role-based access (Manager, Owner)
 
-### Implementation Plan
-1. **StaffShift Model** - Define shift structure (start_time, end_time, shift_type)
-2. **Shift Management Service** - CRUD operations
-3. **Shift API Endpoints** - Create, read, update, delete, list shifts
-4. **Shift Assignment** - Assign staff to shifts with validation
-5. **Shift Comparison** - Endpoint to compare assigned vs actual hours
-6. **Frontend UI** - Staff shift dashboard with calendar view
-
-### Key Requirements
-- Multi-day shift support
-- Overlap detection/prevention
-- Actual hours vs scheduled hours tracking
-- Role-based shift management (Branch Manager, Owner)
-- Branch scoping for multi-tenancy
+## Next Work: P2 - Member Features
 
 ## Git Commits
 - `c78f676` - P1 Phase 1-2: Notification system + Staff attendance
