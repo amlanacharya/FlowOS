@@ -91,3 +91,20 @@ export async function apiFetch<T>(
 
   return payload as T
 }
+
+// Attendance endpoints
+export async function qrCheckin(
+  base: string,
+  token: string,
+  branchId: string,
+  memberCode: string,
+  notes?: string,
+): Promise<any> {
+  // POST /api/v1/attendance/qr-checkin
+  return apiFetch(base, '/api/v1/attendance/qr-checkin', {
+    method: 'POST',
+    token,
+    body: { member_code: memberCode, notes },
+    query: { branch_id: branchId },
+  })
+}

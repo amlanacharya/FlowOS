@@ -1,8 +1,9 @@
 import { type FormEvent, useDeferredValue, useEffect, useState } from 'react'
 import { apiFetch } from '../api'
-import type { Member, MemberCreate } from '../types'
+import type { Member, MemberCreate, QrCheckinResponse } from '../types'
 import { errorMessage, formatDate, formatRole } from '../utils'
 import { SkeletonTableRows } from '../components/Skeleton'
+import { QrScannerModal } from '../components/QrScannerModal'
 import type { Notice } from '../components/NoticeStack'
 
 type Props = {
@@ -30,6 +31,7 @@ export default function MembersPage({ apiBaseUrl, accessToken, branchId, pushNot
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [qrScannerOpen, setQrScannerOpen] = useState(false)
   const [form, setForm] = useState<MemberCreate>(defaultForm)
   const [submitting, setSubmitting] = useState(false)
 
@@ -85,6 +87,11 @@ export default function MembersPage({ apiBaseUrl, accessToken, branchId, pushNot
     setForm((current) => ({ ...current, [key]: value }))
   }
 
+  function handleQrCheckinSuccess(result: QrCheckinResponse) {
+    setQrScannerOpen(false)
+    pushNotice('success', `${result.member_name} checked in successfully`, '')
+  }
+
   const activeCount = members.filter((member) => member.status === 'active').length
   const pausedCount = members.filter((member) => member.status === 'paused').length
   const inactiveCount = members.filter((member) => ['inactive', 'expired'].includes(member.status)).length
@@ -102,6 +109,12 @@ export default function MembersPage({ apiBaseUrl, accessToken, branchId, pushNot
 
         <div className="page-actions">
           <span className="badge badge-active">{activeCount} active</span>
+          <button className="btn btn-secondary" type="button" onClick={() => setQrScannerOpen(true)}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+              <path d="M3 4a1 1 0 0 1 1-1h6V1m10 3a1 1 0 0 0-1-1h-6v2m7 4v6h2V8m0 8v6h-2v-6M3 12v6h2v-6m12-8h6a1 1 0 0 1 1 1v6h2v-6a1 1 0 0 0-1-1h-6V4M3 8h2V4H4a1 1 0 0 0-1 1v3z" />
+            </svg>
+            Scan QR
+          </button>
           <button className="btn btn-primary" type="button" onClick={() => setDrawerOpen(true)}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
               <line x1="12" y1="5" x2="12" y2="19" />
@@ -291,6 +304,16 @@ export default function MembersPage({ apiBaseUrl, accessToken, branchId, pushNot
           </div>
         </form>
       </div>
+
+      <QrScannerModal
+        open={qrScannerOpen}
+        onClose={() => setQrScannerOpen(false)}
+        onSuccess={handleQrCheckinSuccess}
+        apiBaseUrl={apiBaseUrl}
+        accessToken={accessToken}
+        branchId={branchId}
+        pushNotice={pushNotice}
+      />
     </>
   )
 }

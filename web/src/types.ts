@@ -81,6 +81,15 @@ export type Member = {
   created_at: string
 }
 
+export type QrCheckinResponse = {
+  attendance_id: string
+  member_id: string
+  member_name: string
+  subscription_end_date: string | null
+  amount_due: number
+  checked_in_at: string
+}
+
 export type Organization = {
   id: string
   name: string

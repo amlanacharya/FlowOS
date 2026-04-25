@@ -1,12 +1,13 @@
 from datetime import date, datetime
+from decimal import Decimal
 from typing import List, Optional
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
-from app.models import Attendance, Member
-from app.core.enums import AttendanceTypeEnum
+from app.models import Attendance, Member, MemberSubscription
+from app.core.enums import AttendanceTypeEnum, MemberStatusEnum, SubscriptionStatusEnum
 
 
 class AttendanceService:
@@ -103,3 +104,71 @@ class AttendanceService:
         )
         result = await self.session.execute(statement)
         return result.scalars().all()
+
+    async def qr_checkin(
+        self,
+        branch_id: UUID,
+        member_code: str,
+        notes: Optional[str] = None,
+    ) -> dict:
+        """QR code check-in with member and subscription details."""
+        # 1. Find member by code and branch
+        statement = (
+            select(Member)
+            .where(Member.member_code == member_code)
+            .where(Member.branch_id == branch_id)
+        )
+        result = await self.session.execute(statement)
+        member = result.scalars().first()
+
+        if not member:
+            raise ValueError("member_code not found")
+
+        # 2. Check member status
+        if member.status in (MemberStatusEnum.EXPIRED, MemberStatusEnum.INACTIVE):
+            raise ValueError(f"Member {member.full_name} status is {member.status.value}")
+
+        # 3. Check for duplicate checkin today
+        today_start = datetime.combine(date.today(), datetime.min.time())
+        statement = (
+            select(Attendance)
+            .where(Attendance.member_id == member.id)
+            .where(Attendance.attendance_type == AttendanceTypeEnum.GYM_CHECKIN)
+            .where(Attendance.checked_in_at >= today_start)
+        )
+        result = await self.session.execute(statement)
+        existing = result.scalars().first()
+
+        if existing and not existing.checked_out_at:
+            raise ValueError("Member already checked in today")
+
+        # 4. Create attendance record
+        attendance = Attendance(
+            branch_id=branch_id,
+            member_id=member.id,
+            attendance_type=AttendanceTypeEnum.GYM_CHECKIN,
+            notes=notes,
+        )
+        self.session.add(attendance)
+        await self.session.commit()
+        await self.session.refresh(attendance)
+
+        # 5. Get first active subscription
+        statement = (
+            select(MemberSubscription)
+            .where(MemberSubscription.member_id == member.id)
+            .where(MemberSubscription.status == SubscriptionStatusEnum.ACTIVE)
+            .order_by(MemberSubscription.end_date.desc())
+        )
+        result = await self.session.execute(statement)
+        subscription = result.scalars().first()
+
+        # 6. Build response
+        return {
+            "attendance_id": attendance.id,
+            "member_id": member.id,
+            "member_name": member.full_name,
+            "subscription_end_date": subscription.end_date if subscription else None,
+            "amount_due": subscription.amount_due if subscription else Decimal("0.00"),
+            "checked_in_at": attendance.checked_in_at,
+        }

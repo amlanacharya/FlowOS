@@ -1,4 +1,5 @@
-from datetime import datetime
+from datetime import date, datetime
+from decimal import Decimal
 from typing import Optional
 from uuid import UUID
 
@@ -26,3 +27,17 @@ class AttendanceResponse(SQLModel):
     checked_in_at: datetime
     checked_out_at: Optional[datetime]
     created_at: datetime = None
+
+
+class QrCheckinRequest(SQLModel):
+    member_code: str
+    notes: Optional[str] = None
+
+
+class QrCheckinResponse(SQLModel):
+    attendance_id: UUID
+    member_id: UUID
+    member_name: str
+    subscription_end_date: Optional[date]
+    amount_due: Decimal
+    checked_in_at: datetime

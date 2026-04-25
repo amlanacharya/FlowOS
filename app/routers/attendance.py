@@ -8,7 +8,7 @@ from app.core.enums import RoleEnum
 from app.core.exceptions import ResourceNotFoundException
 from app.database import get_session
 from app.deps import get_branch_scope, require_roles
-from app.schemas.attendance import AttendanceCheckinRequest, AttendanceResponse
+from app.schemas.attendance import AttendanceCheckinRequest, AttendanceResponse, QrCheckinRequest, QrCheckinResponse
 from app.services.attendance_service import AttendanceService
 
 router = APIRouter(prefix="/api/v1/attendance", tags=["attendance"])
@@ -27,6 +27,25 @@ async def checkin(
         return await service.checkin(branch_id, data.member_id, data.member_code, data.notes)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/qr-checkin", response_model=QrCheckinResponse)
+async def qr_checkin(
+    data: QrCheckinRequest,
+    claims: dict = Depends(require_roles(RoleEnum.FRONT_DESK, RoleEnum.BRANCH_MANAGER, RoleEnum.OWNER)),
+    branch_id: UUID = Depends(get_branch_scope),
+    session: AsyncSession = Depends(get_session),
+) -> QrCheckinResponse:
+    """QR code check-in with member and subscription details."""
+    service = AttendanceService(session)
+    try:
+        result = await service.qr_checkin(branch_id, data.member_code, data.notes)
+        return QrCheckinResponse(**result)
+    except ValueError as e:
+        error_msg = str(e)
+        if "already checked in" in error_msg:
+            raise HTTPException(status_code=409, detail=error_msg)
+        raise HTTPException(status_code=400, detail=error_msg)
 
 
 @router.post("/checkout", response_model=AttendanceResponse)
