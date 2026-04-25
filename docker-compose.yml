@@ -24,7 +24,8 @@ services:
     build: .
     container_name: flowos_app
     environment:
-      DATABASE_URL: postgresql+psycopg2://flowos:flowos_dev_pass@postgres/flowos_db
+      DATABASE_URL: postgresql://flowos:flowos_dev_pass@postgres/flowos_db
+      SECRET_KEY: ${SECRET_KEY:-change-this-in-prod-at-least-32-characters}
       POSTGRES_USER: flowos
       POSTGRES_PASSWORD: flowos_dev_pass
       POSTGRES_DB: flowos_db
@@ -33,6 +34,7 @@ services:
     volumes:
       - ./app:/app/app
       - ./alembic:/app/alembic
+      - ./tests:/app/tests
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     depends_on:
       postgres:
