@@ -22,6 +22,9 @@ class Lead(SQLModel, table=True):
     phone: str = Field(max_length=20, index=True)
     email: Optional[str] = Field(default=None, max_length=255)
     source: Optional[str] = Field(default=None, max_length=100)
+    utm_source: Optional[str] = Field(default=None, max_length=100)
+    utm_medium: Optional[str] = Field(default=None, max_length=100)
+    utm_campaign: Optional[str] = Field(default=None, max_length=100)
     status: LeadStatusEnum = Field(
         default=LeadStatusEnum.NEW,
         sa_column=Column(Enum(LeadStatusEnum, native_enum=False), nullable=False)

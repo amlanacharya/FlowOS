@@ -1,6 +1,6 @@
 # GOS Feature Parity Implementation Progress
 
-**Status: P2 Foundation Complete | P3-P4 Not Implemented**
+**Status: P3 Foundation Complete | P4 Not Implemented**
 
 ## Completed Phases
 
@@ -53,7 +53,15 @@
 - Trainer dashboard frontend with session roster and member attendance actions
 - Separate member portal Vite entry at `/member.html` with PWA manifest and service worker registration
 
-## Next Work: P3 - Reporting, Marketing, Automation
+### P3: Business Intelligence & Reporting
+- Report schemas, service, and `/api/v1/reports` router for daily sales, retention, trainer performance, revenue forecast, peak hours, and monthly revenue
+- Lead UTM fields and campaign analytics endpoint at `/api/v1/leads/campaigns/summary`
+- Public lead capture endpoint at `/api/v1/public/leads` and embed shell at `/api/v1/public/embed/{branch_slug}`
+- AutomationRule model, schemas, service, and CRUD router at `/api/v1/automation/rules`
+- Reports frontend page with sales, churn, forecast, peak usage, monthly revenue, and campaign attribution cards/tables
+- Automation frontend page with rule creation, list, and active toggle
+
+## Next Work: P4 - Platform & Infrastructure
 
 ## 2026-04-25 Verification Pass
 
@@ -72,9 +80,16 @@
 - Playwright trainer dashboard check - PASS with mocked trainer session API responses
 - Playwright member portal shell check - PASS at `/member.html`
 
+## 2026-04-25 P3 Verification Pass
+
+- `python -m pytest -q` - PASS (12 tests)
+- `npm run lint` - PASS
+- `npm run build` - PASS
+- Playwright reports page check - PASS with mocked report/campaign API responses
+- Playwright automation page check - PASS with mocked automation API responses
+
 ## Remaining Scope Not Implemented
 
-- P3: reporting endpoints/pages, UTM public lead capture, automation rules
 - P4: rate limiting, Redis caching, ARQ worker, audit logging, docker-compose worker/Redis services
 
 ## Git Commits
@@ -85,7 +100,7 @@
 
 ## Next Pipeline
 - **P2** - Workout tracking, member portal PWA, trainer dashboard (foundation complete)
-- **P3** - Reports, UTM tracking, automation rules
+- **P3** - Reports, UTM tracking, automation rules (foundation complete)
 - **P4** - Rate limiting, Redis caching, ARQ jobs, audit logging
 
 ## Setup Notes

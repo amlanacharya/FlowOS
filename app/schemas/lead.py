@@ -12,6 +12,9 @@ class LeadCreate(SQLModel):
     phone: str
     email: Optional[str] = None
     source: Optional[str] = None
+    utm_source: Optional[str] = None
+    utm_medium: Optional[str] = None
+    utm_campaign: Optional[str] = None
     notes: Optional[str] = None
 
 
@@ -28,6 +31,16 @@ class LeadResponse(SQLModel):
     full_name: str
     phone: str
     source: Optional[str] = None
+    utm_source: Optional[str] = None
+    utm_medium: Optional[str] = None
+    utm_campaign: Optional[str] = None
     status: LeadStatusEnum
     trial_scheduled_at: Optional[datetime]
     created_at: datetime
+
+
+class CampaignAnalytics(SQLModel):
+    utm_campaign: str
+    total_leads: int
+    converted: int
+    conversion_rate: float

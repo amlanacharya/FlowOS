@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.database import create_tables
 from app.routers import (
     attendance,
+    automation,
     auth,
     branches,
     class_types,
@@ -21,6 +22,8 @@ from app.routers import (
     organizations,
     payments,
     plans,
+    public,
+    reports,
     sessions,
     staff,
     subscriptions,
@@ -297,6 +300,9 @@ app.include_router(notifications.router, tags=["Notifications"])
 app.include_router(workouts.router, tags=["Workouts"])
 app.include_router(feedback.router, tags=["Feedback"])
 app.include_router(trainer.router, tags=["Trainer"])
+app.include_router(reports.router, tags=["Reports"])
+app.include_router(public.router, tags=["Public"])
+app.include_router(automation.router, tags=["Automation"])
 
 
 if __name__ == "__main__":

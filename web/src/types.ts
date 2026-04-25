@@ -195,6 +195,71 @@ export type TrainerSession = {
   members: TrainerEnrollmentMember[]
 }
 
+export type DailySalesReport = {
+  date: string
+  total_collection: number
+  collection_by_mode: Record<string, number>
+  new_members: number
+  renewals: number
+  leads_converted: number
+}
+
+export type RetentionReport = {
+  total_expired: number
+  not_renewed_within_30d: number
+  churn_rate: number
+  at_risk_members: Array<{ member_id: string; full_name: string; expiry_date: string; days_since_expiry: number }>
+}
+
+export type RevenueForecast = {
+  next_30_days: { count: number; projected_amount: number }
+  next_60_days: { count: number; projected_amount: number }
+  next_90_days: { count: number; projected_amount: number }
+}
+
+export type PeakHourBucket = {
+  hour: number
+  checkin_count: number
+}
+
+export type MonthlyRevenue = {
+  month: string
+  total_revenue: number
+  payment_count: number
+}
+
+export type CampaignAnalytics = {
+  utm_campaign: string
+  total_leads: number
+  converted: number
+  conversion_rate: number
+}
+
+export type AutomationRule = {
+  id: string
+  branch_id: string
+  name: string
+  trigger_event: 'subscription_expiring' | 'lead_stale' | 'dues_overdue'
+  threshold_days: number
+  threshold_amount: number | null
+  action: 'send_whatsapp' | 'alert_manager'
+  is_active: boolean
+  created_at: string
+}
+
+export type AutomationRuleCreate = {
+  name: string
+  trigger_event: AutomationRule['trigger_event']
+  threshold_days: number
+  threshold_amount?: number | null
+  action: AutomationRule['action']
+}
+
+export type AutomationRuleList = {
+  items: AutomationRule[]
+  total: number
+}
+
 export type Organization = {
   id: string
   name: string

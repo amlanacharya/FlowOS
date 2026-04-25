@@ -71,6 +71,17 @@ function IconEngagement() {
   )
 }
 
+function IconReports() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 3v18h18" />
+      <rect x="7" y="12" width="3" height="5" rx="1" />
+      <rect x="12" y="8" width="3" height="9" rx="1" />
+      <rect x="17" y="5" width="3" height="12" rx="1" />
+    </svg>
+  )
+}
+
 function IconSettings() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
@@ -100,6 +111,8 @@ const navGroups: { label: string; items: { id: PageValue; label: string; icon: (
       { id: Page.Leads, label: 'Leads', icon: IconLeads },
       { id: Page.StaffAttendance, label: 'Staff Attendance', icon: IconAttendance },
       { id: Page.Engagement, label: 'Engagement', icon: IconEngagement },
+      { id: Page.Reports, label: 'Reports', icon: IconReports },
+      { id: Page.Automation, label: 'Automation', icon: IconSettings },
       { id: Page.Trainer, label: 'Trainer View', icon: IconAttendance },
     ],
   },
@@ -116,6 +129,7 @@ function canShowPage(page: PageValue, userRole: string) {
   if (userRole === Role.Trainer) return trainerPages.includes(page)
   if (page === Page.Trainer) return false
   if (page === Page.StaffAttendance) return managerRoles.includes(userRole)
+  if (page === Page.Reports || page === Page.Automation) return managerRoles.includes(userRole)
   if (page === Page.Engagement) return [...managerRoles, Role.Trainer].includes(userRole)
   return true
 }

@@ -49,3 +49,14 @@ class AttendanceTypeEnum(str, Enum):
     GYM_CHECKIN = "gym_checkin"
     CLASS_ATTENDANCE = "class_attendance"
     TRIAL_ATTENDANCE = "trial_attendance"
+
+
+class TriggerEventEnum(str, Enum):
+    SUBSCRIPTION_EXPIRING = "subscription_expiring"
+    LEAD_STALE = "lead_stale"
+    DUES_OVERDUE = "dues_overdue"
+
+
+class ActionTypeEnum(str, Enum):
+    SEND_WHATSAPP = "send_whatsapp"
+    ALERT_MANAGER = "alert_manager"

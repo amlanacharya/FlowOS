@@ -10,7 +10,7 @@ from app.core.exceptions import ResourceNotFoundException
 from app.database import get_session
 from app.deps import get_branch_scope, require_roles
 from app.models import Lead, Member
-from app.schemas.lead import LeadCreate, LeadResponse, LeadUpdate
+from app.schemas.lead import CampaignAnalytics, LeadCreate, LeadResponse, LeadUpdate
 from app.schemas.member import MemberCreate
 from app.services.lead_service import LeadService
 from app.services.member_service import MemberService
@@ -40,6 +40,16 @@ async def list_leads(
 ) -> List[LeadResponse]:
     service = LeadService(session)
     return await service.list_leads(branch_id, status, skip, limit)
+
+
+@router.get("/campaigns/summary", response_model=List[CampaignAnalytics])
+async def lead_campaigns(
+    claims: dict = Depends(require_roles(RoleEnum.BRANCH_MANAGER, RoleEnum.OWNER)),
+    branch_id: UUID = Depends(get_branch_scope),
+    session: AsyncSession = Depends(get_session),
+) -> List[CampaignAnalytics]:
+    service = LeadService(session)
+    return await service.campaign_analytics(branch_id)
 
 
 @router.get("/{lead_id}", response_model=LeadResponse)

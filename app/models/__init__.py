@@ -1,4 +1,5 @@
 from .attendance import Attendance
+from .automation_rule import AutomationRule
 from .branch import Branch
 from .class_enrollment import ClassEnrollment
 from .class_session import ClassSession
@@ -37,5 +38,6 @@ __all__ = [
     "ClassSession",
     "ClassEnrollment",
     "Attendance",
+    "AutomationRule",
     "WorkoutLog",
 ]

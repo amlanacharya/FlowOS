@@ -9,9 +9,11 @@ import NoticeStack, { type Notice, type Tone } from './components/NoticeStack'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import EngagementPage from './pages/EngagementPage'
+import AutomationPage from './pages/AutomationPage'
 import LeadsPage from './pages/LeadsPage'
 import MembersPage from './pages/MembersPage'
 import PaymentsPage from './pages/PaymentsPage'
+import ReportsPage from './pages/ReportsPage'
 import SettingsPage from './pages/SettingsPage'
 import StaffAttendancePage from './pages/StaffAttendancePage'
 import TrainerDashboardPage from './pages/TrainerDashboardPage'
@@ -134,6 +136,8 @@ export default function App() {
           {!isTrainerOnly && guardedPage === Page.Payments && <PaymentsPage {...pageProps} />}
           {guardedPage === Page.Trainer && <TrainerDashboardPage {...pageProps} />}
           {guardedPage === Page.Engagement && <EngagementPage {...pageProps} />}
+          {guardedPage === Page.Reports && <ReportsPage {...pageProps} />}
+          {guardedPage === Page.Automation && <AutomationPage {...pageProps} />}
           {guardedPage === Page.StaffAttendance && (
             <StaffAttendancePage
               {...pageProps}

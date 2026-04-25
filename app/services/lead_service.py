@@ -2,12 +2,13 @@ from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
 
+from sqlalchemy import case, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from app.core.enums import LeadStatusEnum
 from app.models import Lead, Member
-from app.schemas.lead import LeadCreate, LeadUpdate
+from app.schemas.lead import CampaignAnalytics, LeadCreate, LeadUpdate
 
 
 class LeadService:
@@ -36,6 +37,32 @@ class LeadService:
             query = query.where(Lead.status == status)
         result = await self.session.execute(query.offset(skip).limit(limit))
         return result.scalars().all()
+
+    async def campaign_analytics(self, branch_id: UUID) -> list[CampaignAnalytics]:
+        result = await self.session.execute(
+            select(
+                Lead.utm_campaign,
+                func.count(Lead.id).label("total_leads"),
+                func.sum(case((Lead.status == LeadStatusEnum.CONVERTED, 1), else_=0)).label("converted"),
+            )
+            .where(Lead.branch_id == branch_id, Lead.utm_campaign.is_not(None))
+            .group_by(Lead.utm_campaign)
+            .order_by(func.count(Lead.id).desc())
+        )
+        rows = result.all()
+        analytics: list[CampaignAnalytics] = []
+        for campaign, total, converted in rows:
+            converted_count = int(converted or 0)
+            total_count = int(total or 0)
+            analytics.append(
+                CampaignAnalytics(
+                    utm_campaign=campaign or "uncategorized",
+                    total_leads=total_count,
+                    converted=converted_count,
+                    conversion_rate=round((converted_count / total_count) * 100, 2) if total_count else 0,
+                )
+            )
+        return analytics
 
     async def update_lead(self, lead_id: UUID, data: LeadUpdate) -> Optional[Lead]:
         lead = await self.get_lead(lead_id)

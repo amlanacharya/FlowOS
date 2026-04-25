@@ -1,7 +1,16 @@
 import type {
   FeedbackSummary,
   FeedbackList,
+  AutomationRule,
+  AutomationRuleCreate,
+  AutomationRuleList,
+  CampaignAnalytics,
+  DailySalesReport,
+  MonthlyRevenue,
+  PeakHourBucket,
   QrCheckinResponse,
+  RetentionReport,
+  RevenueForecast,
   ShiftComparison,
   StaffAttendance,
   StaffAttendanceList,
@@ -272,5 +281,62 @@ export async function markTrainerAttendance(
     method: 'POST',
     token,
     query: { branch_id: branchId, attended },
+  })
+}
+
+export async function getDailySalesReport(base: string, token: string, branchId: string, date: string): Promise<DailySalesReport> {
+  return apiFetch(base, '/api/v1/reports/daily-sales', { token, query: { branch_id: branchId, date } })
+}
+
+export async function getRetentionReport(base: string, token: string, branchId: string): Promise<RetentionReport> {
+  return apiFetch(base, '/api/v1/reports/retention', { token, query: { branch_id: branchId } })
+}
+
+export async function getRevenueForecast(base: string, token: string, branchId: string): Promise<RevenueForecast> {
+  return apiFetch(base, '/api/v1/reports/revenue-forecast', { token, query: { branch_id: branchId } })
+}
+
+export async function getPeakHours(base: string, token: string, branchId: string): Promise<PeakHourBucket[]> {
+  return apiFetch(base, '/api/v1/reports/peak-hours', { token, query: { branch_id: branchId } })
+}
+
+export async function getMonthlyRevenue(base: string, token: string, branchId: string): Promise<MonthlyRevenue[]> {
+  return apiFetch(base, '/api/v1/reports/monthly-revenue', { token, query: { branch_id: branchId } })
+}
+
+export async function getCampaignAnalytics(base: string, token: string, branchId: string): Promise<CampaignAnalytics[]> {
+  return apiFetch(base, '/api/v1/leads/campaigns/summary', { token, query: { branch_id: branchId } })
+}
+
+export async function listAutomationRules(base: string, token: string, branchId: string): Promise<AutomationRuleList> {
+  return apiFetch(base, '/api/v1/automation/rules', { token, query: { branch_id: branchId } })
+}
+
+export async function createAutomationRule(
+  base: string,
+  token: string,
+  branchId: string,
+  rule: AutomationRuleCreate,
+): Promise<AutomationRule> {
+  return apiFetch(base, '/api/v1/automation/rules', {
+    method: 'POST',
+    token,
+    query: { branch_id: branchId },
+    body: rule,
+  })
+}
+
+export async function updateAutomationRule(
+  base: string,
+  token: string,
+  branchId: string,
+  ruleId: string,
+  patch: Partial<Pick<AutomationRule, 'name' | 'threshold_days' | 'threshold_amount' | 'is_active'>>,
+): Promise<AutomationRule> {
+  return apiFetch(base, `/api/v1/automation/rules/${ruleId}`, {
+    method: 'PATCH',
+    token,
+    query: { branch_id: branchId },
+    body: patch,
   })
 }

@@ -16,6 +16,8 @@ export const Page = {
   StaffAttendance: 'staff-attendance',
   Engagement: 'engagement',
   Trainer: 'trainer',
+  Reports: 'reports',
+  Automation: 'automation',
   Settings: 'settings',
 } as const
 
