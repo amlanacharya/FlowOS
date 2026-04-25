@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import jsQR from 'jsqr'
 import { QrCheckinResponse } from '../types'
 
 type PushNoticeFn = (tone: 'success' | 'error' | 'info' | 'warning', message: string) => void
@@ -24,15 +23,13 @@ export function QrScannerModal({
   pushNotice,
 }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState<QrCheckinResponse | null>(null)
   const [manualCode, setManualCode] = useState('')
   const [cameraError, setCameraError] = useState<string>('')
-  const scanningRef = useRef(false)
 
-  // Start camera
+  // Start camera on modal open
   useEffect(() => {
     if (!open) return
 
@@ -47,54 +44,22 @@ export function QrScannerModal({
           videoRef.current.srcObject = stream
           videoRef.current.play()
         }
-        scanningRef.current = true
-        scanQR()
       } catch (err) {
-        setCameraError('Camera access denied or unavailable')
+        setCameraError('Camera access denied or unavailable. Use manual entry instead.')
       }
     }
 
     startCamera()
 
     return () => {
-      // Cleanup: stop tracks and close modal
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop())
       }
-      scanningRef.current = false
     }
   }, [open])
 
-  // QR scanning loop
-  const scanQR = () => {
-    if (!scanningRef.current || !videoRef.current || !canvasRef.current) return
-
-    const canvas = canvasRef.current
-    const video = videoRef.current
-    const ctx = canvas.getContext('2d')
-
-    if (video.readyState !== video.HAVE_ENOUGH_DATA || !ctx) {
-      requestAnimationFrame(scanQR)
-      return
-    }
-
-    canvas.width = video.videoWidth
-    canvas.height = video.videoHeight
-    ctx.drawImage(video, 0, 0)
-
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-    const code = jsQR(imageData.data, canvas.width, canvas.height)
-
-    if (code) {
-      handleScan(code.data)
-    } else {
-      requestAnimationFrame(scanQR)
-    }
-  }
-
   const handleScan = async (memberCode: string) => {
     if (loading || success) return
-    scanningRef.current = false
 
     setLoading(true)
     try {
@@ -114,21 +79,18 @@ export function QrScannerModal({
 
       if (!response.ok) {
         pushNotice('error', data.detail || 'Check-in failed')
-        scanningRef.current = true
-        scanQR()
       } else {
         setSuccess(data)
+        onSuccess(data)
         pushNotice('success', `${data.member_name} checked in`)
+
         setTimeout(() => {
           setSuccess(null)
-          scanningRef.current = true
-          scanQR()
+          setManualCode('')
         }, 3000)
       }
     } catch (err) {
       pushNotice('error', 'Network error during check-in')
-      scanningRef.current = true
-      scanQR()
     } finally {
       setLoading(false)
     }
@@ -137,8 +99,9 @@ export function QrScannerModal({
   const handleManualSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (manualCode.trim()) {
+      const code = manualCode.trim()
       setManualCode('')
-      handleScan(manualCode.trim())
+      handleScan(code)
     }
   }
 
@@ -167,21 +130,21 @@ export function QrScannerModal({
                   display: success ? 'none' : 'block',
                   aspectRatio: '1',
                   objectFit: 'cover',
+                  background: '#000',
                 }}
               />
-              <canvas ref={canvasRef} style={{ display: 'none' }} />
 
               {success && (
-                <div className="card" style={{ padding: '1.5rem', textAlign: 'center' }}>
-                  <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>✓</div>
-                  <h3>{success.member_name}</h3>
+                <div className="card" style={{ padding: '1.5rem', textAlign: 'center', background: '#f5f5f5' }}>
+                  <div style={{ fontSize: '2rem', marginBottom: '0.5rem', color: '#4caf50' }}>✓</div>
+                  <h3 style={{ margin: '0 0 0.5rem 0' }}>{success.member_name}</h3>
                   {success.subscription_end_date && (
                     <p style={{ color: '#666', marginBottom: '0.5rem' }}>
                       Expires: {new Date(success.subscription_end_date).toLocaleDateString()}
                     </p>
                   )}
                   {success.amount_due > 0 && (
-                    <p style={{ color: '#d32f2f', fontWeight: 'bold' }}>
+                    <p style={{ color: '#d32f2f', fontWeight: 'bold', margin: 0 }}>
                       Amount Due: ₹{success.amount_due.toFixed(2)}
                     </p>
                   )}
@@ -190,22 +153,38 @@ export function QrScannerModal({
             </div>
           )}
 
-          {/* Manual entry fallback */}
           <form onSubmit={handleManualSubmit}>
-            <label>
-              <div style={{ fontSize: '0.875rem', marginBottom: '0.25rem' }}>
-                Or enter member code manually:
+            <label htmlFor="manual-code" style={{ display: 'block', marginBottom: '0.5rem' }}>
+              <div style={{ fontSize: '0.875rem', marginBottom: '0.25rem', fontWeight: '500' }}>
+                Enter member code:
               </div>
               <input
+                id="manual-code"
                 type="text"
                 placeholder="Member code"
                 value={manualCode}
                 onChange={e => setManualCode(e.target.value)}
-                style={{ marginBottom: '0.5rem' }}
-                disabled={loading}
+                disabled={loading || !!success}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  marginBottom: '0.75rem',
+                  border: '1px solid #ddd',
+                  borderRadius: '6px',
+                  fontSize: '1rem',
+                }}
               />
             </label>
-            <button type="submit" className="btn btn-primary" disabled={loading || !manualCode.trim()}>
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={loading || !manualCode.trim() || !!success}
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                marginBottom: '0.5rem',
+              }}
+            >
               {loading ? 'Checking in...' : 'Check In'}
             </button>
           </form>
@@ -262,6 +241,16 @@ export function QrScannerModal({
           font-size: 1.5rem;
           cursor: pointer;
           color: #666;
+          padding: 0;
+          width: 2rem;
+          height: 2rem;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .btn-close:hover {
+          color: #000;
         }
 
         .modal-body {
@@ -287,6 +276,43 @@ export function QrScannerModal({
           background: #ffebee;
           color: #c62828;
           border: 1px solid #ef5350;
+        }
+
+        .card {
+          border: 1px solid #e0e0e0;
+          border-radius: 6px;
+        }
+
+        .btn {
+          padding: 0.75rem 1.5rem;
+          border-radius: 6px;
+          border: none;
+          cursor: pointer;
+          font-size: 1rem;
+          font-weight: 500;
+        }
+
+        .btn-primary {
+          background: #6366f1;
+          color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+          background: #4f46e5;
+        }
+
+        .btn-primary:disabled {
+          background: #d1d5db;
+          cursor: not-allowed;
+        }
+
+        .btn-secondary {
+          background: #e5e7eb;
+          color: #374151;
+        }
+
+        .btn-secondary:hover {
+          background: #d1d5db;
         }
       `}</style>
     </div>
