@@ -172,6 +172,11 @@ export type FeedbackSummary = {
   recent: MemberFeedback[]
 }
 
+export type FeedbackList = {
+  items: MemberFeedback[]
+  total: number
+}
+
 export type TrainerEnrollmentMember = {
   enrollment_id: string
   member_id: string

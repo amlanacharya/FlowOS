@@ -3,6 +3,7 @@ import './App.css'
 import { apiFetch } from './api'
 import type { UserProfile } from './types'
 import { errorMessage } from './utils'
+import { Page, Role, type PageValue } from './constants'
 import Sidebar from './components/Sidebar'
 import NoticeStack, { type Notice, type Tone } from './components/NoticeStack'
 import LoginPage from './pages/LoginPage'
@@ -14,8 +15,6 @@ import PaymentsPage from './pages/PaymentsPage'
 import SettingsPage from './pages/SettingsPage'
 import StaffAttendancePage from './pages/StaffAttendancePage'
 import TrainerDashboardPage from './pages/TrainerDashboardPage'
-
-type Page = 'dashboard' | 'leads' | 'members' | 'payments' | 'staff-attendance' | 'engagement' | 'trainer' | 'settings'
 
 const DEFAULT_API_BASE_URL = 'http://127.0.0.1:8000'
 
@@ -34,7 +33,7 @@ export default function App() {
   const [refreshToken, setRefreshToken] = useState(() => read('flowos-refresh-token'))
   const [branchOverride, setBranchOverride] = useState(() => read('flowos-branch-override'))
   const [profile, setProfile] = useState<UserProfile | null>(null)
-  const [currentPage, setCurrentPage] = useState<Page>('dashboard')
+  const [currentPage, setCurrentPage] = useState<PageValue>(Page.Dashboard)
   const [health, setHealth] = useState<'checking' | 'online' | 'offline'>('checking')
   const [notices, setNotices] = useState<Notice[]>([])
 
@@ -83,7 +82,7 @@ export default function App() {
     setRefreshToken(rt)
     setProfile(p)
     pushNotice('success', 'Signed in', `Welcome back, ${p.full_name}.`)
-    setCurrentPage(p.role === 'trainer' ? 'trainer' : 'dashboard')
+    setCurrentPage(p.role === Role.Trainer ? Page.Trainer : Page.Dashboard)
   }
 
   function handleLogout() {
@@ -114,7 +113,8 @@ export default function App() {
   }
 
   const pageProps = { apiBaseUrl, accessToken, branchId, pushNotice }
-  const isTrainerOnly = profile?.role === 'trainer'
+  const isTrainerOnly = profile?.role === Role.Trainer
+  const guardedPage = isTrainerOnly && currentPage !== Page.Trainer ? Page.Trainer : currentPage
 
   return (
     <>
@@ -128,22 +128,19 @@ export default function App() {
           health={health}
         />
         <div className="content-area">
-          {isTrainerOnly && currentPage !== 'trainer' ? (
-            <TrainerDashboardPage {...pageProps} />
-          ) : null}
-          {!isTrainerOnly && currentPage === 'dashboard' && <DashboardPage {...pageProps} />}
-          {currentPage === 'leads'     && <LeadsPage     {...pageProps} />}
-          {currentPage === 'members'   && <MembersPage   {...pageProps} />}
-          {!isTrainerOnly && currentPage === 'payments'  && <PaymentsPage  {...pageProps} />}
-          {currentPage === 'trainer' && <TrainerDashboardPage {...pageProps} />}
-          {currentPage === 'engagement' && <EngagementPage {...pageProps} />}
-          {currentPage === 'staff-attendance' && (
+          {!isTrainerOnly && guardedPage === Page.Dashboard && <DashboardPage {...pageProps} />}
+          {guardedPage === Page.Leads && <LeadsPage {...pageProps} />}
+          {guardedPage === Page.Members && <MembersPage {...pageProps} />}
+          {!isTrainerOnly && guardedPage === Page.Payments && <PaymentsPage {...pageProps} />}
+          {guardedPage === Page.Trainer && <TrainerDashboardPage {...pageProps} />}
+          {guardedPage === Page.Engagement && <EngagementPage {...pageProps} />}
+          {guardedPage === Page.StaffAttendance && (
             <StaffAttendancePage
               {...pageProps}
               currentStaffId={profile?.staff_id ?? ''}
             />
           )}
-          {currentPage === 'settings'  && (
+          {guardedPage === Page.Settings  && (
             <SettingsPage
               apiBaseUrl={apiBaseUrl}
               onApiBaseUrlChange={handleApiBaseUrlChange}

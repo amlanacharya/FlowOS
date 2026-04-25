@@ -1,10 +1,9 @@
 import type { ReactNode } from 'react'
-
-type Page = 'dashboard' | 'leads' | 'members' | 'payments' | 'staff-attendance' | 'engagement' | 'trainer' | 'settings'
+import { MANAGER_ROLES, Page, Role, TRAINER_ALLOWED_PAGES, type PageValue } from '../constants'
 
 type Props = {
-  currentPage: Page
-  onNavigate: (page: Page) => void
+  currentPage: PageValue
+  onNavigate: (page: PageValue) => void
   onLogout: () => void
   userName: string
   userRole: string
@@ -91,24 +90,35 @@ function IconLogout() {
   )
 }
 
-const navGroups: { label: string; items: { id: Page; label: string; icon: () => ReactNode }[] }[] = [
+const navGroups: { label: string; items: { id: PageValue; label: string; icon: () => ReactNode }[] }[] = [
   {
     label: 'Operations',
     items: [
-      { id: 'dashboard', label: 'Dashboard', icon: IconDashboard },
-      { id: 'payments', label: 'Payments', icon: IconPayments },
-      { id: 'members', label: 'Members', icon: IconMembers },
-      { id: 'leads', label: 'Leads', icon: IconLeads },
-      { id: 'staff-attendance', label: 'Staff Attendance', icon: IconAttendance },
-      { id: 'engagement', label: 'Engagement', icon: IconEngagement },
-      { id: 'trainer', label: 'Trainer View', icon: IconAttendance },
+      { id: Page.Dashboard, label: 'Dashboard', icon: IconDashboard },
+      { id: Page.Payments, label: 'Payments', icon: IconPayments },
+      { id: Page.Members, label: 'Members', icon: IconMembers },
+      { id: Page.Leads, label: 'Leads', icon: IconLeads },
+      { id: Page.StaffAttendance, label: 'Staff Attendance', icon: IconAttendance },
+      { id: Page.Engagement, label: 'Engagement', icon: IconEngagement },
+      { id: Page.Trainer, label: 'Trainer View', icon: IconAttendance },
     ],
   },
   {
     label: 'Workspace',
-    items: [{ id: 'settings', label: 'Settings', icon: IconSettings }],
+    items: [{ id: Page.Settings, label: 'Settings', icon: IconSettings }],
   },
 ]
+
+function canShowPage(page: PageValue, userRole: string) {
+  const managerRoles = MANAGER_ROLES as readonly string[]
+  const trainerPages = TRAINER_ALLOWED_PAGES as readonly string[]
+
+  if (userRole === Role.Trainer) return trainerPages.includes(page)
+  if (page === Page.Trainer) return false
+  if (page === Page.StaffAttendance) return managerRoles.includes(userRole)
+  if (page === Page.Engagement) return [...managerRoles, Role.Trainer].includes(userRole)
+  return true
+}
 
 export default function Sidebar({ currentPage, onNavigate, onLogout, userName, userRole, health }: Props) {
   const initials = userName
@@ -142,13 +152,7 @@ export default function Sidebar({ currentPage, onNavigate, onLogout, userName, u
           <div key={group.label}>
             <div className="nav-section-label">{group.label}</div>
             {group.items
-              .filter((item) => {
-                if (userRole === 'trainer') return ['trainer', 'engagement', 'settings'].includes(item.id)
-                if (item.id === 'trainer') return false
-                if (item.id === 'staff-attendance') return ['branch_manager', 'owner'].includes(userRole)
-                if (item.id === 'engagement') return ['branch_manager', 'owner', 'trainer'].includes(userRole)
-                return true
-              })
+              .filter((item) => canShowPage(item.id, userRole))
               .map((item) => (
                 <button
                   key={item.id}

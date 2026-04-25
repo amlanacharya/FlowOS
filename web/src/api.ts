@@ -1,6 +1,6 @@
 import type {
   FeedbackSummary,
-  MemberFeedback,
+  FeedbackList,
   QrCheckinResponse,
   ShiftComparison,
   StaffAttendance,
@@ -232,7 +232,7 @@ export async function listFeedback(
   base: string,
   token: string,
   branchId: string,
-): Promise<MemberFeedback[]> {
+): Promise<FeedbackList> {
   return apiFetch(base, '/api/v1/feedback', {
     token,
     query: { branch_id: branchId },

@@ -1,9 +1,10 @@
-import { type FormEvent, useCallback, useEffect, useState } from 'react'
+import { type FormEvent, useMemo, useState } from 'react'
 import { createWorkout, feedbackSummary, listFeedback, listWorkouts } from '../api'
 import type { FeedbackSummary, MemberFeedback, WorkoutLog, WorkoutLogCreate } from '../types'
 import { errorMessage, formatDate } from '../utils'
 import { SkeletonTableRows } from '../components/Skeleton'
 import type { Notice } from '../components/NoticeStack'
+import { useAsyncData } from '../hooks/useAsyncData'
 
 type Props = {
   apiBaseUrl: string
@@ -26,25 +27,22 @@ export default function EngagementPage({ apiBaseUrl, accessToken, branchId, push
   const [workouts, setWorkouts] = useState<WorkoutLog[]>([])
   const [feedback, setFeedback] = useState<MemberFeedback[]>([])
   const [summary, setSummary] = useState<FeedbackSummary | null>(null)
-  const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [form, setForm] = useState(defaultWorkout)
 
-  const refreshFeedback = useCallback(async () => {
-    const [summaryData, feedbackData] = await Promise.all([
+  const { loading } = useAsyncData(
+    async () => Promise.all([
       feedbackSummary(apiBaseUrl, accessToken, branchId),
       listFeedback(apiBaseUrl, accessToken, branchId),
-    ])
-    setSummary(summaryData)
-    setFeedback(feedbackData)
-  }, [accessToken, apiBaseUrl, branchId])
-
-  useEffect(() => {
-    setLoading(true)
-    refreshFeedback()
-      .catch((error) => pushNotice('error', 'Failed to load engagement data', errorMessage(error)))
-      .finally(() => setLoading(false))
-  }, [pushNotice, refreshFeedback])
+    ]),
+    [accessToken, apiBaseUrl, branchId, pushNotice],
+    ([summaryData, feedbackData]) => {
+      setSummary(summaryData)
+      setFeedback(feedbackData.items)
+    },
+    pushNotice,
+    'Failed to load engagement data',
+  )
 
   async function loadWorkouts(targetMemberId = memberId.trim()) {
     if (!targetMemberId) return
@@ -81,6 +79,7 @@ export default function EngagementPage({ apiBaseUrl, accessToken, branchId, push
   }
 
   const averageRating = typeof summary?.average_rating === 'number' ? summary.average_rating.toFixed(1) : '0.0'
+  const workoutRows = useMemo(() => workouts, [workouts])
 
   return (
     <>
@@ -151,7 +150,7 @@ export default function EngagementPage({ apiBaseUrl, accessToken, branchId, push
                   </tr>
                 </thead>
                 <tbody>
-                  {workouts.length > 0 ? workouts.map((workout) => (
+                  {workoutRows.length > 0 ? workoutRows.map((workout) => (
                     <tr key={workout.id}>
                       <td>{formatDate(workout.workout_date)}</td>
                       <td>{workout.exercise_name}</td>

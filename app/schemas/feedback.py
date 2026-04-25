@@ -24,3 +24,8 @@ class FeedbackSummary(SQLModel):
     average_rating: float
     total: int
     recent: List[MemberFeedbackResponse]
+
+
+class FeedbackListResponse(SQLModel):
+    items: List[MemberFeedbackResponse]
+    total: int

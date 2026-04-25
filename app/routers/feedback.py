@@ -1,13 +1,14 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.enums import RoleEnum
 from app.database import get_session
 from app.deps import get_branch_scope, require_roles
-from app.schemas.feedback import FeedbackSummary, MemberFeedbackCreate, MemberFeedbackResponse
+from app.routers.common import bad_request_on_value_error
+from app.schemas.feedback import FeedbackListResponse, FeedbackSummary, MemberFeedbackCreate, MemberFeedbackResponse
 from app.services.feedback_service import FeedbackService
 
 router = APIRouter(prefix="/api/v1/feedback", tags=["feedback"])
@@ -21,13 +22,10 @@ async def submit_feedback(
     session: AsyncSession = Depends(get_session),
 ) -> MemberFeedbackResponse:
     service = FeedbackService(session)
-    try:
-        return await service.submit_feedback(branch_id, data)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+    return await bad_request_on_value_error(lambda: service.submit_feedback(branch_id, data))
 
 
-@router.get("", response_model=List[MemberFeedbackResponse])
+@router.get("", response_model=FeedbackListResponse)
 async def list_feedback(
     date_from: Optional[datetime] = None,
     date_to: Optional[datetime] = None,
@@ -37,10 +35,9 @@ async def list_feedback(
     claims: dict = Depends(require_roles(RoleEnum.BRANCH_MANAGER, RoleEnum.OWNER)),
     branch_id=Depends(get_branch_scope),
     session: AsyncSession = Depends(get_session),
-) -> List[MemberFeedbackResponse]:
+) -> FeedbackListResponse:
     service = FeedbackService(session)
-    items, _ = await service.list_feedback(branch_id, date_from, date_to, min_rating, skip, limit)
-    return items
+    return await service.list_feedback(branch_id, date_from, date_to, min_rating, skip, limit)
 
 
 @router.get("/summary", response_model=FeedbackSummary)

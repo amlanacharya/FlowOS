@@ -6,8 +6,9 @@ from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
-from app.models import Member, WorkoutLog
-from app.schemas.workout import WorkoutLogCreate
+from app.models import WorkoutLog
+from app.schemas.workout import WorkoutLogCreate, WorkoutProgressPoint
+from app.services.common import apply_pagination, branch_conditions, require_branch_member
 
 
 class WorkoutService:
@@ -20,9 +21,7 @@ class WorkoutService:
         data: WorkoutLogCreate,
         logged_by_staff_id: Optional[UUID],
     ) -> WorkoutLog:
-        member = await self.session.get(Member, data.member_id)
-        if not member or member.branch_id != branch_id:
-            raise ValueError("Member not found in this branch")
+        await require_branch_member(self.session, branch_id, data.member_id)
 
         workout = WorkoutLog(
             branch_id=branch_id,
@@ -50,20 +49,21 @@ class WorkoutService:
         skip: int = 0,
         limit: int = 100,
     ) -> List[WorkoutLog]:
-        conditions = [WorkoutLog.branch_id == branch_id, WorkoutLog.member_id == member_id]
-        if exercise_name:
-            conditions.append(WorkoutLog.exercise_name.ilike(f"%{exercise_name}%"))
-        if date_from:
-            conditions.append(WorkoutLog.workout_date >= date_from)
-        if date_to:
-            conditions.append(WorkoutLog.workout_date <= date_to)
+        conditions = branch_conditions(
+            WorkoutLog,
+            branch_id,
+            WorkoutLog.member_id == member_id,
+            WorkoutLog.exercise_name.ilike(f"%{exercise_name}%") if exercise_name else None,
+            WorkoutLog.workout_date >= date_from if date_from else None,
+            WorkoutLog.workout_date <= date_to if date_to else None,
+        )
 
-        statement = (
+        statement = apply_pagination(
             select(WorkoutLog)
             .where(*conditions)
-            .order_by(WorkoutLog.workout_date.desc(), WorkoutLog.created_at.desc())
-            .offset(skip)
-            .limit(limit)
+            .order_by(WorkoutLog.workout_date.desc(), WorkoutLog.created_at.desc()),
+            skip,
+            limit,
         )
         result = await self.session.execute(statement)
         return list(result.scalars().all())
@@ -73,10 +73,13 @@ class WorkoutService:
         branch_id: UUID,
         member_id: UUID,
         exercise_name: Optional[str] = None,
-    ) -> list[dict]:
-        conditions = [WorkoutLog.branch_id == branch_id, WorkoutLog.member_id == member_id]
-        if exercise_name:
-            conditions.append(WorkoutLog.exercise_name.ilike(f"%{exercise_name}%"))
+    ) -> list[WorkoutProgressPoint]:
+        conditions = branch_conditions(
+            WorkoutLog,
+            branch_id,
+            WorkoutLog.member_id == member_id,
+            WorkoutLog.exercise_name.ilike(f"%{exercise_name}%") if exercise_name else None,
+        )
 
         statement = (
             select(
@@ -90,6 +93,10 @@ class WorkoutService:
         )
         result = await self.session.execute(statement)
         return [
-            {"workout_date": row.workout_date, "sessions": row.sessions, "max_weight_kg": row.max_weight_kg}
+            WorkoutProgressPoint(
+                workout_date=row.workout_date,
+                sessions=row.sessions,
+                max_weight_kg=row.max_weight_kg,
+            )
             for row in result.all()
         ]

@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { markTrainerAttendance, trainerToday } from '../api'
 import type { TrainerSession } from '../types'
 import { errorMessage, formatDate } from '../utils'
 import Skeleton from '../components/Skeleton'
 import type { Notice } from '../components/NoticeStack'
+import { useAsyncData } from '../hooks/useAsyncData'
 
 type Props = {
   apiBaseUrl: string
@@ -18,23 +19,15 @@ function sessionTime(value: string) {
 
 export default function TrainerDashboardPage({ apiBaseUrl, accessToken, branchId, pushNotice }: Props) {
   const [sessions, setSessions] = useState<TrainerSession[]>([])
-  const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState('')
 
-  const refresh = useCallback(async () => {
-    setLoading(true)
-    try {
-      setSessions(await trainerToday(apiBaseUrl, accessToken, branchId))
-    } catch (error) {
-      pushNotice('error', 'Failed to load trainer schedule', errorMessage(error))
-    } finally {
-      setLoading(false)
-    }
-  }, [accessToken, apiBaseUrl, branchId, pushNotice])
-
-  useEffect(() => {
-    void refresh()
-  }, [refresh])
+  const { loading, refresh } = useAsyncData(
+    () => trainerToday(apiBaseUrl, accessToken, branchId),
+    [accessToken, apiBaseUrl, branchId, pushNotice],
+    setSessions,
+    pushNotice,
+    'Failed to load trainer schedule',
+  )
 
   async function mark(enrollmentId: string, attended: boolean) {
     setUpdating(enrollmentId)
@@ -49,7 +42,10 @@ export default function TrainerDashboardPage({ apiBaseUrl, accessToken, branchId
     }
   }
 
-  const totalMembers = sessions.reduce((sum, session) => sum + session.members.length, 0)
+  const totalMembers = useMemo(
+    () => sessions.reduce((sum, session) => sum + session.members.length, 0),
+    [sessions],
+  )
 
   return (
     <>
