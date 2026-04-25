@@ -18,8 +18,10 @@ from app.schemas.staff_attendance import (
     StaffCheckinResponse,
     StaffAttendanceListResponse,
 )
+from app.schemas.staff_shift import StaffShiftCreate, StaffShiftUpdate, StaffShiftResponse, ShiftComparisonResponse
 from app.services.auth_service import AuthService
 from app.services.staff_attendance_service import StaffAttendanceService
+from app.services.staff_shift_service import StaffShiftService
 
 router = APIRouter(prefix="/api/v1/staff", tags=["staff"])
 
@@ -191,3 +193,142 @@ async def list_staff_attendance(
         items=[StaffCheckinResponse(**r.dict()) for r in records],
         total=total,
     )
+
+
+# Shift Management endpoints
+@router.post("/shifts", response_model=StaffShiftResponse)
+async def create_shift(
+    staff_id: UUID = Query(...),
+    shift: StaffShiftCreate = None,
+    claims: dict = Depends(require_roles(RoleEnum.BRANCH_MANAGER, RoleEnum.OWNER)),
+    branch_id: UUID = Depends(get_branch_scope),
+    session: AsyncSession = Depends(get_session),
+) -> StaffShiftResponse:
+    """Create a new staff shift."""
+    from app.models import StaffShift
+
+    service = StaffShiftService(session)
+    try:
+        created = await service.create_shift(
+            branch_id=branch_id,
+            staff_id=staff_id,
+            shift_date=shift.shift_date,
+            shift_start=shift.shift_start,
+            shift_end=shift.shift_end,
+            shift_type=shift.shift_type,
+            notes=shift.notes,
+        )
+        return StaffShiftResponse(**created.dict())
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+
+
+@router.get("/shifts", response_model=dict)
+async def list_shifts(
+    staff_id: UUID = Query(None),
+    date_from: str = Query(None),
+    date_to: str = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, le=1000),
+    claims: dict = Depends(require_roles(RoleEnum.BRANCH_MANAGER, RoleEnum.OWNER)),
+    branch_id: UUID = Depends(get_branch_scope),
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """List staff shifts."""
+    from datetime import datetime
+
+    date_from_obj = datetime.fromisoformat(date_from) if date_from else None
+    date_to_obj = datetime.fromisoformat(date_to) if date_to else None
+
+    service = StaffShiftService(session)
+    shifts, total = await service.list_shifts(
+        branch_id=branch_id,
+        staff_id=staff_id,
+        date_from=date_from_obj,
+        date_to=date_to_obj,
+        skip=skip,
+        limit=limit,
+    )
+
+    return {
+        "items": [StaffShiftResponse(**s.dict()) for s in shifts],
+        "total": total,
+    }
+
+
+@router.get("/shifts/{shift_id}", response_model=StaffShiftResponse)
+async def get_shift(
+    shift_id: UUID,
+    claims: dict = Depends(require_roles(RoleEnum.BRANCH_MANAGER, RoleEnum.OWNER)),
+    session: AsyncSession = Depends(get_session),
+) -> StaffShiftResponse:
+    """Get shift details."""
+    service = StaffShiftService(session)
+    shift = await service.get_shift(shift_id)
+    if not shift:
+        raise ResourceNotFoundException()
+    return StaffShiftResponse(**shift.dict())
+
+
+@router.patch("/shifts/{shift_id}", response_model=StaffShiftResponse)
+async def update_shift(
+    shift_id: UUID,
+    update: StaffShiftUpdate,
+    claims: dict = Depends(require_roles(RoleEnum.BRANCH_MANAGER, RoleEnum.OWNER)),
+    session: AsyncSession = Depends(get_session),
+) -> StaffShiftResponse:
+    """Update shift details."""
+    service = StaffShiftService(session)
+    try:
+        shift = await service.update_shift(
+            shift_id=shift_id,
+            shift_start=update.shift_start,
+            shift_end=update.shift_end,
+            shift_type=update.shift_type,
+            notes=update.notes,
+        )
+        if not shift:
+            raise ResourceNotFoundException()
+        return StaffShiftResponse(**shift.dict())
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+
+
+@router.delete("/shifts/{shift_id}")
+async def delete_shift(
+    shift_id: UUID,
+    claims: dict = Depends(require_roles(RoleEnum.BRANCH_MANAGER, RoleEnum.OWNER)),
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """Delete a shift."""
+    service = StaffShiftService(session)
+    success = await service.delete_shift(shift_id)
+    if not success:
+        raise ResourceNotFoundException()
+    return {"message": "Shift deleted"}
+
+
+@router.get("/shifts/{staff_id}/comparison", response_model=ShiftComparisonResponse)
+async def compare_shifts(
+    staff_id: UUID,
+    date_from: str = Query(None),
+    date_to: str = Query(None),
+    claims: dict = Depends(require_roles(RoleEnum.BRANCH_MANAGER, RoleEnum.OWNER)),
+    branch_id: UUID = Depends(get_branch_scope),
+    session: AsyncSession = Depends(get_session),
+) -> ShiftComparisonResponse:
+    """Compare scheduled vs actual hours."""
+    from datetime import datetime
+
+    date_from_obj = datetime.fromisoformat(date_from) if date_from else None
+    date_to_obj = datetime.fromisoformat(date_to) if date_to else None
+
+    service = StaffShiftService(session)
+    result = await service.compare_shifts(
+        branch_id=branch_id,
+        staff_id=staff_id,
+        date_from=date_from_obj,
+        date_to=date_to_obj,
+    )
+
+    return ShiftComparisonResponse(**result)
