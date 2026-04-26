@@ -26,6 +26,20 @@ from app.services.staff_shift_service import StaffShiftService
 router = APIRouter(prefix="/api/v1/staff", tags=["staff"])
 
 
+def _to_response(staff: Staff, user: User) -> StaffResponse:
+    return StaffResponse(
+        id=staff.id,
+        user_id=staff.user_id,
+        organization_id=staff.organization_id,
+        branch_id=staff.branch_id,
+        role=staff.role,
+        is_active=staff.is_active,
+        joined_at=staff.joined_at,
+        full_name=user.full_name,
+        email=user.email,
+    )
+
+
 @router.post("", response_model=StaffResponse)
 async def create_staff(
     staff_data: StaffCreate,
@@ -50,7 +64,7 @@ async def create_staff(
     session.add(staff)
     await session.commit()
     await session.refresh(staff)
-    return staff
+    return _to_response(staff, user)
 
 
 @router.get("", response_model=List[StaffResponse])
@@ -59,10 +73,10 @@ async def list_staff(
     claims: dict = Depends(require_roles(RoleEnum.OWNER, RoleEnum.BRANCH_MANAGER)),
     session: AsyncSession = Depends(get_session),
 ) -> List[StaffResponse]:
-    statement = select(Staff).where(Staff.organization_id == org_id)
-    result = await session.execute(statement)
-    staff_list = result.scalars().all()
-    return staff_list
+    result = await session.execute(
+        select(Staff, User).join(User, User.id == Staff.user_id).where(Staff.organization_id == org_id)
+    )
+    return [_to_response(staff, user) for staff, user in result.all()]
 
 
 # Attendance endpoints
@@ -293,10 +307,13 @@ async def get_staff(
     claims: dict = Depends(require_roles(RoleEnum.OWNER, RoleEnum.BRANCH_MANAGER)),
     session: AsyncSession = Depends(get_session),
 ) -> StaffResponse:
-    staff = await session.get(Staff, staff_id)
-    if not staff:
+    result = await session.execute(
+        select(Staff, User).join(User, User.id == Staff.user_id).where(Staff.id == staff_id)
+    )
+    row = result.first()
+    if not row:
         raise ResourceNotFoundException()
-    return staff
+    return _to_response(row[0], row[1])
 
 
 @router.patch("/{staff_id}", response_model=StaffResponse)
@@ -306,9 +323,13 @@ async def update_staff(
     claims: dict = Depends(require_roles(RoleEnum.OWNER, RoleEnum.BRANCH_MANAGER)),
     session: AsyncSession = Depends(get_session),
 ) -> StaffResponse:
-    staff = await session.get(Staff, staff_id)
-    if not staff:
+    result = await session.execute(
+        select(Staff, User).join(User, User.id == Staff.user_id).where(Staff.id == staff_id)
+    )
+    row = result.first()
+    if not row:
         raise ResourceNotFoundException()
+    staff, user = row
     for key, value in staff_update.dict(exclude_unset=True).items():
         if key not in ["email", "password"]:
             setattr(staff, key, value)
@@ -316,7 +337,7 @@ async def update_staff(
     session.add(staff)
     await session.commit()
     await session.refresh(staff)
-    return staff
+    return _to_response(staff, user)
 
 
 @router.delete("/{staff_id}")

@@ -1,9 +1,10 @@
 import asyncio
+from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import func
+from sqlalchemy import func, literal_column, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -19,6 +20,16 @@ from app.schemas.report import (
     RevenueWindow,
     TrainerPerformanceRow,
 )
+
+
+@dataclass
+class TrainerPerformanceBucket:
+    """Bucket for aggregating trainer performance metrics."""
+    staff_id: UUID
+    name: str
+    sessions: int = 0
+    fill: float = 0.0
+    member_hours: float = 0.0
 
 
 class ReportService:
@@ -112,22 +123,24 @@ class ReportService:
             .join(User, User.id == Staff.user_id)
             .where(ClassSession.branch_id == branch_id, ClassSession.scheduled_at >= start, ClassSession.scheduled_at <= end)
         )
-        grouped: dict[UUID, dict] = {}
+        grouped: dict[UUID, TrainerPerformanceBucket] = {}
         for session, staff, user in result.all():
-            bucket = grouped.setdefault(staff.id, {"name": user.full_name, "sessions": 0, "fill": 0.0, "member_hours": 0.0})
-            bucket["sessions"] += 1
-            bucket["fill"] += (session.enrolled_count / session.capacity) * 100 if session.capacity else 0
-            bucket["member_hours"] += session.enrolled_count * (session.duration_minutes / 60)
+            if staff.id not in grouped:
+                grouped[staff.id] = TrainerPerformanceBucket(staff_id=staff.id, name=user.full_name)
+            bucket = grouped[staff.id]
+            bucket.sessions += 1
+            bucket.fill += (session.enrolled_count / session.capacity) * 100 if session.capacity else 0
+            bucket.member_hours += session.enrolled_count * (session.duration_minutes / 60)
 
         return [
             TrainerPerformanceRow(
-                staff_id=staff_id,
-                trainer_name=data["name"],
-                sessions_delivered=data["sessions"],
-                avg_fill_rate=round(data["fill"] / data["sessions"], 2) if data["sessions"] else 0,
-                total_member_hours=round(data["member_hours"], 2),
+                staff_id=bucket.staff_id,
+                trainer_name=bucket.name,
+                sessions_delivered=bucket.sessions,
+                avg_fill_rate=round(bucket.fill / bucket.sessions, 2) if bucket.sessions else 0,
+                total_member_hours=round(bucket.member_hours, 2),
             )
-            for staff_id, data in grouped.items()
+            for bucket in grouped.values()
         ]
 
     async def revenue_forecast(self, branch_id: UUID) -> RevenueForecast:
@@ -160,15 +173,16 @@ class ReportService:
 
     async def monthly_revenue(self, branch_id: UUID, months: int = 12) -> list[MonthlyRevenue]:
         start = date.today().replace(day=1) - timedelta(days=31 * max(months - 1, 0))
+        month_expr = literal_column("date_trunc('month', payments.payment_date)")
         rows = await self.session.execute(
             select(
-                func.date_trunc("month", Payment.payment_date).label("month"),
+                month_expr.label("month"),
                 func.sum(Payment.amount).label("total"),
                 func.count(Payment.id).label("count"),
             )
             .where(Payment.branch_id == branch_id, Payment.payment_date >= start)
-            .group_by(func.date_trunc("month", Payment.payment_date))
-            .order_by(func.date_trunc("month", Payment.payment_date))
+            .group_by(month_expr)
+            .order_by(month_expr)
         )
         return [
             MonthlyRevenue(

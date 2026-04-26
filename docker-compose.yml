@@ -24,7 +24,7 @@ services:
     build: .
     container_name: flowos_app
     environment:
-      DATABASE_URL: postgresql+psycopg2://flowos:flowos_dev_pass@postgres/flowos_db
+      DATABASE_URL: postgresql+asyncpg://flowos:flowos_dev_pass@postgres/flowos_db
       POSTGRES_USER: flowos
       POSTGRES_PASSWORD: flowos_dev_pass
       POSTGRES_DB: flowos_db
