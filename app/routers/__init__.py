@@ -5,15 +5,21 @@ from . import (
     branches,
     class_types,
     dashboard,
+    feedback,
+    invoices,
     leads,
     members,
+    membership_tracking,
     notifications,
     organizations,
     payments,
     plans,
+    reminders,
     sessions,
     staff,
     subscriptions,
+    trainer,
+    workouts,
 )
 
 __all__ = [
@@ -30,5 +36,11 @@ __all__ = [
     "class_types",
     "attendance",
     "dashboard",
+    "feedback",
+    "invoices",
     "notifications",
+    "reminders",
+    "membership_tracking",
+    "trainer",
+    "workouts",
 ]

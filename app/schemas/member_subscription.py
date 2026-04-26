@@ -28,4 +28,14 @@ class SubscriptionResponse(SQLModel):
     total_amount: Decimal
     amount_paid: Decimal
     amount_due: Decimal
+    total_pause_days: int = 0
     created_at: datetime
+
+
+class PauseSubscriptionRequest(SQLModel):
+    pause_date: date
+    reason: Optional[str] = None
+
+
+class ResumeSubscriptionRequest(SQLModel):
+    resume_date: date

@@ -2,7 +2,7 @@ from datetime import date
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -11,7 +11,11 @@ from app.core.exceptions import ResourceNotFoundException
 from app.database import get_session
 from app.deps import get_branch_scope, get_current_user, require_roles
 from app.models import Staff, User
-from app.schemas.member_subscription import SubscriptionResponse
+from app.schemas.member_subscription import (
+    PauseSubscriptionRequest,
+    ResumeSubscriptionRequest,
+    SubscriptionResponse,
+)
 from app.services.subscription_service import SubscriptionService
 
 router = APIRouter(prefix="/api/v1/subscriptions", tags=["subscriptions"])
@@ -65,12 +69,21 @@ async def get_subscription(
 @router.post("/{sub_id}/pause")
 async def pause_subscription(
     sub_id: UUID,
-    freeze_days: int = 30,
+    payload: PauseSubscriptionRequest,
     claims: dict = Depends(require_roles(RoleEnum.BRANCH_MANAGER, RoleEnum.OWNER)),
+    user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
+    result = await session.execute(select(Staff).where(Staff.user_id == user.id))
+    staff = result.scalars().first()
+    if not staff:
+        raise ResourceNotFoundException("Staff profile not found")
+
     service = SubscriptionService(session)
-    sub = await service.pause_subscription(sub_id, freeze_days)
+    try:
+        sub = await service.pause_subscription(sub_id, staff.id, payload.pause_date, payload.reason)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     if not sub:
         raise ResourceNotFoundException()
     return sub
@@ -79,11 +92,15 @@ async def pause_subscription(
 @router.post("/{sub_id}/resume")
 async def resume_subscription(
     sub_id: UUID,
+    payload: ResumeSubscriptionRequest,
     claims: dict = Depends(require_roles(RoleEnum.BRANCH_MANAGER, RoleEnum.OWNER)),
     session: AsyncSession = Depends(get_session),
 ):
     service = SubscriptionService(session)
-    sub = await service.resume_subscription(sub_id)
+    try:
+        sub = await service.resume_subscription(sub_id, payload.resume_date)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     if not sub:
         raise ResourceNotFoundException()
     return sub
@@ -92,6 +109,7 @@ async def resume_subscription(
 @router.post("/{sub_id}/renew")
 async def renew_subscription(
     sub_id: UUID,
+    plan_id: Optional[UUID] = None,
     claims: dict = Depends(require_roles(RoleEnum.FRONT_DESK, RoleEnum.BRANCH_MANAGER)),
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
@@ -102,7 +120,10 @@ async def renew_subscription(
         raise ResourceNotFoundException("Staff profile not found")
 
     service = SubscriptionService(session)
-    new_sub = await service.renew_subscription(sub_id, staff.id)
+    try:
+        new_sub = await service.renew_subscription(sub_id, staff.id, plan_id=plan_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     if not new_sub:
         raise ResourceNotFoundException()
     return new_sub

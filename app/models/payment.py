@@ -22,6 +22,7 @@ class Payment(SQLModel, table=True):
     branch_id: UUID = Field(foreign_key="branches.id", index=True)
     member_id: UUID = Field(foreign_key="members.id", index=True)
     subscription_id: Optional[UUID] = Field(default=None, foreign_key="member_subscriptions.id")
+    invoice_id: Optional[UUID] = Field(default=None, foreign_key="invoices.id", index=True)
     amount: Decimal = Field(sa_column=Column(Numeric(10, 2)))
     mode: PaymentModeEnum = Field(sa_column=Column(Enum(PaymentModeEnum, native_enum=False), nullable=False))
     transaction_reference: Optional[str] = Field(default=None, max_length=255)

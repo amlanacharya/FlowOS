@@ -25,6 +25,14 @@ type Payment = {
 type MemberOption = {
   id: string
   full_name: string
+  phone: string
+}
+
+type InvoiceOption = {
+  id: string
+  invoice_no: string
+  member_id: string
+  amount_due: number
 }
 
 export default function PaymentsPage({ apiBaseUrl, accessToken, branchId, pushNotice }: Props) {
@@ -34,10 +42,13 @@ export default function PaymentsPage({ apiBaseUrl, accessToken, branchId, pushNo
   const [revenue, setRevenue] = useState<RevenueBreakdown[]>([])
   const [payments, setPayments] = useState<Payment[]>([])
   const [members, setMembers] = useState<MemberOption[]>([])
+  const [invoices, setInvoices] = useState<InvoiceOption[]>([])
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [memberSearch, setMemberSearch] = useState('')
 
   const [form, setForm] = useState({
+    invoice_id: '',
     member_id: '',
     amount: '',
     mode: 'cash',
@@ -53,14 +64,19 @@ export default function PaymentsPage({ apiBaseUrl, accessToken, branchId, pushNo
       apiFetch<RevenueBreakdown[]>(apiBaseUrl, '/api/v1/dashboard/revenue', { token: accessToken, query }),
       apiFetch<Payment[]>(apiBaseUrl, '/api/v1/payments', { token: accessToken, query }),
       apiFetch<MemberOption[]>(apiBaseUrl, '/api/v1/members', { token: accessToken, query }),
-    ]).then(([summaryResult, duesResult, revenueResult, paymentResult, memberResult]) => {
+      apiFetch<InvoiceOption[]>(apiBaseUrl, '/api/v1/invoices', {
+        token: accessToken,
+        query: { ...(query ?? {}), only_outstanding: true },
+      }),
+    ]).then(([summaryResult, duesResult, revenueResult, paymentResult, memberResult, invoiceResult]) => {
       if (summaryResult.status === 'fulfilled') setSummary(summaryResult.value)
       if (duesResult.status === 'fulfilled') setDues(duesResult.value)
       if (revenueResult.status === 'fulfilled') setRevenue(revenueResult.value)
       if (paymentResult.status === 'fulfilled') setPayments(paymentResult.value)
       if (memberResult.status === 'fulfilled') setMembers(memberResult.value)
+      if (invoiceResult.status === 'fulfilled') setInvoices(invoiceResult.value)
 
-      const firstFailure = [summaryResult, duesResult, revenueResult, paymentResult, memberResult].find((result) => result.status === 'rejected')
+      const firstFailure = [summaryResult, duesResult, revenueResult, paymentResult, memberResult, invoiceResult].find((result) => result.status === 'rejected')
       if (firstFailure?.status === 'rejected') {
         pushNotice('info', 'Partial data loaded', errorMessage(firstFailure.reason))
       }
@@ -70,7 +86,14 @@ export default function PaymentsPage({ apiBaseUrl, accessToken, branchId, pushNo
   }, [accessToken, apiBaseUrl, query, pushNotice])
 
   const mtdRevenue = revenue.reduce((sum, point) => sum + Number(point.amount), 0)
-  const membersById = new Map(members.map((member) => [member.id, member.full_name]))
+  const membersById = new Map(members.map((member) => [member.id, `${member.full_name} (${member.phone})`]))
+  const filteredMembers = useMemo(() => {
+    const q = memberSearch.trim().toLowerCase()
+    if (!q) return members.slice(0, 80)
+    return members
+      .filter((member) => `${member.full_name} ${member.phone}`.toLowerCase().includes(q))
+      .slice(0, 80)
+  }, [memberSearch, members])
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
@@ -83,27 +106,34 @@ export default function PaymentsPage({ apiBaseUrl, accessToken, branchId, pushNo
         query,
         body: {
           member_id: form.member_id,
+          invoice_id: form.invoice_id || undefined,
           amount: Number(form.amount),
           mode: form.mode,
           notes: form.notes || undefined,
         },
       })
 
-      setForm({ member_id: '', amount: '', mode: 'cash', notes: '' })
+      setForm({ invoice_id: '', member_id: '', amount: '', mode: 'cash', notes: '' })
+      setMemberSearch('')
       setDrawerOpen(false)
       pushNotice('success', 'Payment recorded', `${formatCurrency(Number(form.amount))} captured via ${form.mode}.`)
 
-      const [summaryResult, duesResult, revenueResult, paymentResult] = await Promise.allSettled([
+      const [summaryResult, duesResult, revenueResult, paymentResult, invoiceResult] = await Promise.allSettled([
         apiFetch<PaymentSummary>(apiBaseUrl, '/api/v1/payments/summary', { token: accessToken, query }),
         apiFetch<DuesReport[]>(apiBaseUrl, '/api/v1/dashboard/dues', { token: accessToken, query }),
         apiFetch<RevenueBreakdown[]>(apiBaseUrl, '/api/v1/dashboard/revenue', { token: accessToken, query }),
         apiFetch<Payment[]>(apiBaseUrl, '/api/v1/payments', { token: accessToken, query }),
+        apiFetch<InvoiceOption[]>(apiBaseUrl, '/api/v1/invoices', {
+          token: accessToken,
+          query: { ...(query ?? {}), only_outstanding: true },
+        }),
       ])
 
       if (summaryResult.status === 'fulfilled') setSummary(summaryResult.value)
       if (duesResult.status === 'fulfilled') setDues(duesResult.value)
       if (revenueResult.status === 'fulfilled') setRevenue(revenueResult.value)
       if (paymentResult.status === 'fulfilled') setPayments(paymentResult.value)
+      if (invoiceResult.status === 'fulfilled') setInvoices(invoiceResult.value)
     } catch (error) {
       pushNotice('error', 'Payment failed', errorMessage(error))
     } finally {
@@ -264,17 +294,61 @@ export default function PaymentsPage({ apiBaseUrl, accessToken, branchId, pushNo
         <form onSubmit={handleSubmit} style={{ display: 'contents' }}>
           <div className="drawer-body">
             <div className="field">
+              <label className="field-label" htmlFor="payment-invoice">Outstanding invoice</label>
+              <select
+                id="payment-invoice"
+                value={form.invoice_id}
+                onChange={(event) => {
+                  const selected = invoices.find((invoice) => invoice.id === event.target.value)
+                  const selectedMember = members.find((member) => member.id === selected?.member_id)
+                  setForm((current) => ({
+                    ...current,
+                    invoice_id: event.target.value,
+                    member_id: selected?.member_id ?? current.member_id,
+                    amount: selected ? String(selected.amount_due) : current.amount,
+                  }))
+                  if (selectedMember) {
+                    setMemberSearch(`${selectedMember.full_name} ${selectedMember.phone}`)
+                  }
+                }}
+              >
+                <option value="">Select invoice (optional)</option>
+                {invoices.map((invoice) => (
+                  <option key={invoice.id} value={invoice.id}>
+                    {invoice.invoice_no} - INR {invoice.amount_due}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="field">
+              <label className="field-label" htmlFor="payment-member-search">Member phone/name search</label>
+              <input
+                id="payment-member-search"
+                value={memberSearch}
+                onChange={(event) => setMemberSearch(event.target.value)}
+                placeholder="Type member phone or name"
+              />
+            </div>
+
+            <div className="field">
               <label className="field-label" htmlFor="payment-member">Member</label>
               <select
                 id="payment-member"
                 value={form.member_id}
-                onChange={(event) => setForm((current) => ({ ...current, member_id: event.target.value }))}
+                onChange={(event) => {
+                  const selected = members.find((member) => member.id === event.target.value)
+                  setForm((current) => ({ ...current, member_id: event.target.value }))
+                  if (selected) {
+                    setMemberSearch(`${selected.full_name} ${selected.phone}`)
+                  }
+                }}
                 required
               >
                 <option value="">Select a member</option>
-                {members.map((member) => (
+                {filteredMembers.map((member) => (
                   <option key={member.id} value={member.id}>
-                    {member.full_name}
+                    {member.full_name} ({member.phone})
                   </option>
                 ))}
               </select>

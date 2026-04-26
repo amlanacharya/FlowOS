@@ -43,11 +43,34 @@ function IconMembers() {
   )
 }
 
+function IconMembershipTracking() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 6h18" />
+      <path d="M3 12h18" />
+      <path d="M3 18h18" />
+      <circle cx="8" cy="6" r="1" />
+      <circle cx="16" cy="12" r="1" />
+      <circle cx="10" cy="18" r="1" />
+    </svg>
+  )
+}
+
 function IconPayments() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
       <rect x="2" y="5" width="20" height="14" rx="3" />
       <line x1="2" y1="10" x2="22" y2="10" />
+    </svg>
+  )
+}
+
+function IconInvoices() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 3h9l5 5v13a1 1 0 0 1-1 1H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" />
+      <path d="M14 3v6h6" />
+      <path d="M8 13h8M8 17h8" />
     </svg>
   )
 }
@@ -96,7 +119,9 @@ const navGroups: { label: string; items: { id: PageValue; label: string; icon: (
     items: [
       { id: Page.Dashboard, label: 'Dashboard', icon: IconDashboard },
       { id: Page.Payments, label: 'Payments', icon: IconPayments },
+      { id: Page.Invoices, label: 'Invoices', icon: IconInvoices },
       { id: Page.Members, label: 'Members', icon: IconMembers },
+      { id: Page.MembershipTracking, label: 'Membership Tracking', icon: IconMembershipTracking },
       { id: Page.Leads, label: 'Leads', icon: IconLeads },
       { id: Page.StaffAttendance, label: 'Staff Attendance', icon: IconAttendance },
       { id: Page.Engagement, label: 'Engagement', icon: IconEngagement },

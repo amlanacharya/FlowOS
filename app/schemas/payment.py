@@ -11,6 +11,7 @@ from app.core.enums import PaymentModeEnum
 class PaymentCreate(SQLModel):
     member_id: UUID
     subscription_id: Optional[UUID] = None
+    invoice_id: Optional[UUID] = None
     amount: Decimal
     mode: PaymentModeEnum
     transaction_reference: Optional[str] = None
@@ -23,6 +24,7 @@ class PaymentResponse(SQLModel):
     branch_id: UUID
     member_id: UUID
     subscription_id: Optional[UUID]
+    invoice_id: Optional[UUID]
     amount: Decimal
     mode: PaymentModeEnum
     payment_date: date

@@ -3,6 +3,7 @@ from .branch import Branch
 from .class_enrollment import ClassEnrollment
 from .class_session import ClassSession
 from .class_type import ClassType
+from .invoice import Invoice
 from .lead import Lead
 from .member import Member
 from .member_feedback import MemberFeedback
@@ -15,6 +16,8 @@ from .refresh_token import RefreshToken
 from .staff import Staff
 from .staff_attendance import StaffAttendance
 from .staff_shift import StaffShift
+from .subscription_adjustment import SubscriptionAdjustment
+from .subscription_pause_history import SubscriptionPauseHistory
 from .user import User
 from .workout_log import WorkoutLog
 
@@ -38,4 +41,7 @@ __all__ = [
     "ClassEnrollment",
     "Attendance",
     "WorkoutLog",
+    "Invoice",
+    "SubscriptionPauseHistory",
+    "SubscriptionAdjustment",
 ]

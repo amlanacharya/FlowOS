@@ -47,6 +47,19 @@ Owner context: Gym operations and front-desk workflow
 - On renewal: create renewal record + invoice
 - Payment recording reconciles outstanding uncleared invoices (or from phone/member search)
 
+9. Member addition workflow defaults:
+- Member addition must include membership plan selection
+- New member should be created with default status `active`
+- Invoice must be auto-created during member addition flow
+- Member, plan, and status details remain editable after creation
+
+10. Pause/Resume operational requirements:
+- Pause action must capture `pause_date`
+- Resume action must capture `resume_date`
+- Pause/resume events must be recorded in membership tracking history via FK linkage
+- Total paused days must be calculated from history
+- During renewal flow, paused-days impact must be visible in a popup with selected plan details
+
 ## Current-state assessment
 
 Existing foundation in codebase:
@@ -78,11 +91,15 @@ Major gaps:
 - Renewal always creates a new billable event and invoice
 - Payment posting must reconcile against selected invoice or oldest outstanding by policy
 
-5. Reminder operational UX:
+5. Member onboarding transaction:
+- Add-member flow is transactional: create member (active), create subscription, create invoice
+- If any step fails, the operation should rollback and return a clear validation/business error
+
+6. Reminder operational UX:
 - Priority queue ordered as: T+1, T, T-1, T-2, T-3
 - Keep checklist and action logs (called, message sent, no response, paid)
 
-6. Compliance and risk:
+7. Compliance and risk:
 - Store Aadhaar/PAN securely (mask in UI, restrict role visibility)
 
 ## Proposed architecture changes
@@ -113,6 +130,17 @@ Major gaps:
 5. Payment linkage:
 - add `invoice_id` reference for direct reconciliation
 
+6. New SubscriptionPauseHistory model (required):
+- `id`, `member_id`, `subscription_id`, `branch_id`
+- `pause_date` (required), `resume_date` (nullable until resumed)
+- `pause_days` (derived on resume and stored for reporting consistency)
+- `reason`, `created_by_staff_id`, timestamps
+- FK to `member_subscriptions.id` to maintain a complete pause timeline per subscription
+
+7. MemberSubscription enhancements:
+- `total_pause_days` (aggregate of related pause history)
+- optional `last_pause_date`, `last_resume_date` (denormalized convenience fields)
+
 ### Service layer changes
 
 1. `invoice_service.py` (new):
@@ -137,6 +165,13 @@ Major gaps:
 - handle KYC fields
 - blacklist/terminate flows
 
+6. `subscription_service.py` pause/resume expansion:
+- pause API requires explicit `pause_date`
+- resume API requires explicit `resume_date`
+- creates/updates `subscription_pause_history` records
+- recalculates and persists `member_subscriptions.total_pause_days`
+- adjusts effective subscription end-date policy as defined by business rules
+
 ### API/router changes
 
 Update:
@@ -148,6 +183,11 @@ Add:
 - `app/routers/invoices.py`
 - `app/routers/membership_tracking.py`
 - `app/routers/reminders.py`
+
+Pause/Resume route contract updates:
+- `POST /api/v1/subscriptions/{sub_id}/pause` accepts `pause_date` and reason
+- `POST /api/v1/subscriptions/{sub_id}/resume` accepts `resume_date`
+- add list endpoint for pause history under membership tracking for timeline view
 
 ### Frontend changes
 
@@ -161,11 +201,15 @@ Update:
 Add:
 - `web/src/pages/MembershipTrackingPage.tsx`
 - optional components: `InvoiceDrawer`, `RenewalChecklist`, `MemberLookupInput`, `AdjustmentModal`
+- add component: `PauseResumeModal` (date inputs + history preview)
+- add component: `RenewalImpactPopup` (selected plan + paused-days summary + payable calculation)
 
 ## Implementation phases
 
 Phase 1: Data contracts and migrations
 - enums, models, schemas, Alembic migration
+- add `subscription_pause_history` table + FK constraints
+- add `total_pause_days` to `member_subscriptions`
 
 Phase 2: Invoice and reconciliation backend
 - invoice service/router, payment reconciliation
@@ -183,12 +227,32 @@ Phase 5: KPI and reporting
 
 1. Adding a new monthly member creates invoice including registration fee.
 2. Renewal creates invoice with zero registration fee.
-3. Front desk can find member by phone/name and settle an outstanding invoice.
-4. Reminder queue correctly lists T-3, T-2, T-1, T, T+1 members.
-5. Pause/resume and day adjustments are available from membership tracking page.
-6. Blacklisted/terminated members are visible with controlled actions.
+3. Member creation requires plan selection and defaults member status to `active`.
+4. Front desk can find member by phone/name and settle an outstanding invoice.
+5. Reminder queue correctly lists T-3, T-2, T-1, T, T+1 members.
+6. Pause/resume and day adjustments are available from membership tracking page.
+7. Blacklisted/terminated members are visible with controlled actions.
+8. Pause requires pause date, resume requires resume date, and both are captured in pause history.
+9. Renewal popup shows selected plan and pause-history impact before final renewal action.
 
 ## Notes
 
 - This spec captures product planning decisions from owner feedback session on 2026-04-25.
 - WhatsApp/SMS delivery is intentionally deferred; reminder data model and API are prepared first.
+
+## Implementation status on `prem-dev-25thApr`
+
+Implemented in current branch:
+- Member onboarding now requires plan selection, defaults status to `active`, and creates subscription + invoice.
+- New invoice model, listing API, and payment-to-invoice reconciliation flow.
+- Membership tracking page with:
+- pause (pause date + reason), resume (resume date), pause history timeline
+- renewal popup with selectable plan and renewal invoice creation
+- reminder checklist panel for T-3, T-2, T-1, T, T+1
+- manual day adjustments (`+/- days`) with adjustment history
+- Pause history is persisted in `subscription_pause_history` and total pause days are tracked on subscription.
+
+Pending / next-phase:
+- Reminder action logging states (called/message sent/no response/paid).
+- Automated WhatsApp/SMS reminder delivery integration.
+- Additional reporting widgets for adjustment trends and renewal pipeline conversion.

@@ -11,6 +11,8 @@ import DashboardPage from './pages/DashboardPage'
 import EngagementPage from './pages/EngagementPage'
 import LeadsPage from './pages/LeadsPage'
 import MembersPage from './pages/MembersPage'
+import MembershipTrackingPage from './pages/MembershipTrackingPage'
+import InvoicesPage from './pages/InvoicesPage'
 import PaymentsPage from './pages/PaymentsPage'
 import SettingsPage from './pages/SettingsPage'
 import StaffAttendancePage from './pages/StaffAttendancePage'
@@ -131,6 +133,8 @@ export default function App() {
           {!isTrainerOnly && guardedPage === Page.Dashboard && <DashboardPage {...pageProps} />}
           {guardedPage === Page.Leads && <LeadsPage {...pageProps} />}
           {guardedPage === Page.Members && <MembersPage {...pageProps} />}
+          {!isTrainerOnly && guardedPage === Page.Invoices && <InvoicesPage {...pageProps} />}
+          {!isTrainerOnly && guardedPage === Page.MembershipTracking && <MembershipTrackingPage {...pageProps} />}
           {!isTrainerOnly && guardedPage === Page.Payments && <PaymentsPage {...pageProps} />}
           {guardedPage === Page.Trainer && <TrainerDashboardPage {...pageProps} />}
           {guardedPage === Page.Engagement && <EngagementPage {...pageProps} />}

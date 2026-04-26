@@ -81,6 +81,29 @@ export type Member = {
   created_at: string
 }
 
+export type MemberDetail = Member & {
+  email?: string | null
+  aadhaar_no?: string | null
+  pan_no?: string | null
+  date_of_birth?: string | null
+  gender?: string | null
+  emergency_contact?: string | null
+  notes?: string | null
+}
+
+export type MemberUpdate = {
+  full_name?: string
+  phone?: string
+  email?: string
+  aadhaar_no?: string
+  pan_no?: string
+  date_of_birth?: string
+  gender?: string
+  emergency_contact?: string
+  notes?: string
+  status?: string
+}
+
 export type QrCheckinResponse = {
   attendance_id: string
   member_id: string
@@ -238,7 +261,85 @@ export type LeadCreate = {
 export type MemberCreate = {
   full_name: string
   phone: string
+  plan_id: string
   email?: string
+  aadhaar_no?: string
+  pan_no?: string
+  date_of_birth?: string
   gender?: string
   emergency_contact?: string
+  notes?: string
+  status?: string
+}
+
+export type PlanOption = {
+  id: string
+  name: string
+  plan_type: string
+  duration_days: number
+  price: number
+  registration_fee: number
+}
+
+export type MembershipTrackingItem = {
+  subscription_id: string
+  member_id: string
+  member_name: string
+  member_phone: string
+  plan_id: string
+  start_date: string
+  end_date: string
+  status: string
+  amount_due: number
+  total_pause_days: number
+  renewal_due_in_days: number
+}
+
+export type PauseHistoryItem = {
+  id: string
+  subscription_id: string
+  pause_date: string
+  resume_date: string | null
+  pause_days: number
+  reason: string | null
+  created_at: string
+}
+
+export type SubscriptionAdjustmentItem = {
+  id: string
+  subscription_id: string
+  days_delta: number
+  reason: string | null
+  created_at: string
+}
+
+export type InvoiceItem = {
+  id: string
+  invoice_no: string
+  branch_id: string
+  member_id: string
+  subscription_id: string | null
+  invoice_type: string
+  status: string
+  subtotal: number
+  registration_fee: number
+  discount: number
+  tax: number
+  total_amount: number
+  amount_paid: number
+  amount_due: number
+  due_date: string
+  notes: string | null
+  created_at: string
+}
+
+export type ReminderChecklistItem = {
+  subscription_id: string
+  member_id: string
+  member_name: string
+  member_phone: string
+  end_date: string
+  checkpoint_day: number
+  checkpoint_label: string
+  amount_due: number
 }

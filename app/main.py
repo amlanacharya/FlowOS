@@ -15,12 +15,15 @@ from app.routers import (
     class_types,
     dashboard,
     feedback,
+    invoices,
     leads,
     members,
+    membership_tracking,
     notifications,
     organizations,
     payments,
     plans,
+    reminders,
     sessions,
     staff,
     subscriptions,
@@ -297,6 +300,9 @@ app.include_router(notifications.router, tags=["Notifications"])
 app.include_router(workouts.router, tags=["Workouts"])
 app.include_router(feedback.router, tags=["Feedback"])
 app.include_router(trainer.router, tags=["Trainer"])
+app.include_router(invoices.router, tags=["Invoices"])
+app.include_router(membership_tracking.router, tags=["Membership Tracking"])
+app.include_router(reminders.router, tags=["Reminders"])
 
 
 if __name__ == "__main__":

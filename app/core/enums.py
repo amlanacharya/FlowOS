@@ -23,11 +23,38 @@ class MemberStatusEnum(str, Enum):
     EXPIRED = "expired"
     PAUSED = "paused"
     INACTIVE = "inactive"
+    TERMINATED = "terminated"
+    BLACKLISTED = "blacklisted"
 
 
 class SubscriptionStatusEnum(str, Enum):
     ACTIVE = "active"
     EXPIRED = "expired"
+    PAUSED = "paused"
+
+
+class PlanTypeEnum(str, Enum):
+    MONTHLY = "monthly"
+    QUARTERLY = "quarterly"
+    HALF_YEARLY = "half_yearly"
+    ANNUALLY = "annually"
+    LIFETIME = "lifetime"
+
+
+class InvoiceStatusEnum(str, Enum):
+    DRAFT = "draft"
+    ISSUED = "issued"
+    PARTIAL = "partial"
+    PAID = "paid"
+    OVERDUE = "overdue"
+    VOID = "void"
+
+
+class InvoiceTypeEnum(str, Enum):
+    NEW_JOIN = "new_join"
+    RENEWAL = "renewal"
+    ADDON = "addon"
+    ADJUSTMENT = "adjustment"
 
 
 class ShiftTypeEnum(str, Enum):

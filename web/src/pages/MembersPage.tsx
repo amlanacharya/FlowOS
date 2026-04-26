@@ -1,6 +1,13 @@
 import { type FormEvent, useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { apiFetch } from '../api'
-import type { Member, MemberCreate, QrCheckinResponse } from '../types'
+import type {
+  Member,
+  MemberCreate,
+  MemberDetail,
+  MemberUpdate,
+  PlanOption,
+  QrCheckinResponse,
+} from '../types'
 import { errorMessage, formatDate, formatRole } from '../utils'
 import { SkeletonTableRows } from '../components/Skeleton'
 import { QrScannerModal } from '../components/QrScannerModal'
@@ -16,9 +23,41 @@ type Props = {
 const defaultForm: MemberCreate = {
   full_name: '',
   phone: '',
+  plan_id: '',
   email: '',
+  aadhaar_no: '',
+  pan_no: '',
+  date_of_birth: '',
   gender: '',
   emergency_contact: '',
+  notes: '',
+  status: 'active',
+}
+
+type EditMemberForm = {
+  full_name: string
+  phone: string
+  email: string
+  aadhaar_no: string
+  pan_no: string
+  date_of_birth: string
+  gender: string
+  emergency_contact: string
+  notes: string
+  status: string
+}
+
+const defaultEditForm: EditMemberForm = {
+  full_name: '',
+  phone: '',
+  email: '',
+  aadhaar_no: '',
+  pan_no: '',
+  date_of_birth: '',
+  gender: '',
+  emergency_contact: '',
+  notes: '',
+  status: 'active',
 }
 
 function Badge({ status }: { status: string }) {
@@ -29,19 +68,29 @@ export default function MembersPage({ apiBaseUrl, accessToken, branchId, pushNot
   const [members, setMembers] = useState<Member[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [plans, setPlans] = useState<PlanOption[]>([])
   const [filterStatus, setFilterStatus] = useState('')
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [qrScannerOpen, setQrScannerOpen] = useState(false)
   const [form, setForm] = useState<MemberCreate>(defaultForm)
   const [submitting, setSubmitting] = useState(false)
+  const [editDrawerOpen, setEditDrawerOpen] = useState(false)
+  const [editingMemberId, setEditingMemberId] = useState('')
+  const [editForm, setEditForm] = useState<EditMemberForm>(defaultEditForm)
+  const [editLoading, setEditLoading] = useState(false)
+  const [editSubmitting, setEditSubmitting] = useState(false)
 
   const deferredSearch = useDeferredValue(search.trim().toLowerCase())
   const query = useMemo(() => (branchId ? { branch_id: branchId } : undefined), [branchId])
 
   const fetchMembers = useCallback(async () => {
     try {
-      const data = await apiFetch<Member[]>(apiBaseUrl, '/api/v1/members', { token: accessToken, query })
-      setMembers(data)
+      const [membersData, plansData] = await Promise.all([
+        apiFetch<Member[]>(apiBaseUrl, '/api/v1/members', { token: accessToken, query }),
+        apiFetch<PlanOption[]>(apiBaseUrl, '/api/v1/plans', { token: accessToken, query }),
+      ])
+      setMembers(membersData)
+      setPlans(plansData)
     } catch (error) {
       pushNotice('error', 'Failed to load members', errorMessage(error))
     } finally {
@@ -85,6 +134,74 @@ export default function MembersPage({ apiBaseUrl, accessToken, branchId, pushNot
 
   function updateForm(key: keyof MemberCreate, value: string) {
     setForm((current) => ({ ...current, [key]: value }))
+  }
+
+  function updateEditForm(key: keyof EditMemberForm, value: string) {
+    setEditForm((current) => ({ ...current, [key]: value }))
+  }
+
+  async function openEditDrawer(memberId: string) {
+    setEditLoading(true)
+    try {
+      const detail = await apiFetch<MemberDetail>(apiBaseUrl, `/api/v1/members/${memberId}`, {
+        token: accessToken,
+      })
+      setEditingMemberId(memberId)
+      setEditForm({
+        full_name: detail.full_name ?? '',
+        phone: detail.phone ?? '',
+        email: detail.email ?? '',
+        aadhaar_no: detail.aadhaar_no ?? '',
+        pan_no: detail.pan_no ?? '',
+        date_of_birth: detail.date_of_birth ?? '',
+        gender: detail.gender ?? '',
+        emergency_contact: detail.emergency_contact ?? '',
+        notes: detail.notes ?? '',
+        status: detail.status ?? 'active',
+      })
+      setEditDrawerOpen(true)
+    } catch (error) {
+      pushNotice('error', 'Failed to load member details', errorMessage(error))
+    } finally {
+      setEditLoading(false)
+    }
+  }
+
+  async function handleEditSubmit(event: FormEvent) {
+    event.preventDefault()
+    if (!editingMemberId) {
+      return
+    }
+    setEditSubmitting(true)
+
+    const payload: MemberUpdate = {
+      full_name: editForm.full_name,
+      phone: editForm.phone,
+      email: editForm.email || undefined,
+      aadhaar_no: editForm.aadhaar_no || undefined,
+      pan_no: editForm.pan_no || undefined,
+      date_of_birth: editForm.date_of_birth || undefined,
+      gender: editForm.gender || undefined,
+      emergency_contact: editForm.emergency_contact || undefined,
+      notes: editForm.notes || undefined,
+      status: editForm.status || undefined,
+    }
+
+    try {
+      await apiFetch<Member>(apiBaseUrl, `/api/v1/members/${editingMemberId}`, {
+        method: 'PATCH',
+        token: accessToken,
+        body: payload,
+      })
+      setEditDrawerOpen(false)
+      pushNotice('success', 'Member updated', `${editForm.full_name} profile updated successfully.`)
+      setLoading(true)
+      await fetchMembers()
+    } catch (error) {
+      pushNotice('error', 'Failed to update member', errorMessage(error))
+    } finally {
+      setEditSubmitting(false)
+    }
   }
 
   function handleQrCheckinSuccess(result: QrCheckinResponse) {
@@ -167,7 +284,7 @@ export default function MembersPage({ apiBaseUrl, accessToken, branchId, pushNot
               onChange={(event) => setFilterStatus(event.target.value)}
             >
               <option value="">All statuses</option>
-              {['active', 'expired', 'paused', 'inactive'].map((status) => (
+              {['active', 'inactive', 'terminated', 'blacklisted', 'expired', 'paused'].map((status) => (
                 <option key={status} value={status}>
                   {formatRole(status)}
                 </option>
@@ -186,6 +303,7 @@ export default function MembersPage({ apiBaseUrl, accessToken, branchId, pushNot
                   <th>Status</th>
                   <th>Phone</th>
                   <th>Joined</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -204,11 +322,21 @@ export default function MembersPage({ apiBaseUrl, accessToken, branchId, pushNot
                       </td>
                       <td className="mono">{member.phone}</td>
                       <td>{formatDate(member.joined_at || member.created_at)}</td>
+                      <td>
+                        <button
+                          className="btn btn-ghost"
+                          type="button"
+                          onClick={() => void openEditDrawer(member.id)}
+                          disabled={editLoading}
+                        >
+                          Edit
+                        </button>
+                      </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={5} className="empty-row">
+                    <td colSpan={6} className="empty-row">
                       No members match this filter. Try a different status or create the next member profile.
                     </td>
                   </tr>
@@ -256,6 +384,23 @@ export default function MembersPage({ apiBaseUrl, accessToken, branchId, pushNot
             </div>
 
             <div className="field">
+              <label className="field-label" htmlFor="member-plan">Membership plan</label>
+              <select
+                id="member-plan"
+                value={form.plan_id}
+                onChange={(event) => updateForm('plan_id', event.target.value)}
+                required
+              >
+                <option value="">Select plan</option>
+                {plans.map((plan) => (
+                  <option key={plan.id} value={plan.id}>
+                    {plan.name} ({plan.plan_type.replaceAll('_', ' ')}) - INR {plan.price}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="field">
               <label className="field-label" htmlFor="member-email">Email</label>
               <input
                 id="member-email"
@@ -263,6 +408,36 @@ export default function MembersPage({ apiBaseUrl, accessToken, branchId, pushNot
                 value={form.email ?? ''}
                 onChange={(event) => updateForm('email', event.target.value)}
                 placeholder="rhea@example.com"
+              />
+            </div>
+
+            <div className="field">
+              <label className="field-label" htmlFor="member-aadhaar">Aadhaar number</label>
+              <input
+                id="member-aadhaar"
+                value={form.aadhaar_no ?? ''}
+                onChange={(event) => updateForm('aadhaar_no', event.target.value)}
+                placeholder="1234 5678 9012"
+              />
+            </div>
+
+            <div className="field">
+              <label className="field-label" htmlFor="member-pan">PAN number</label>
+              <input
+                id="member-pan"
+                value={form.pan_no ?? ''}
+                onChange={(event) => updateForm('pan_no', event.target.value)}
+                placeholder="ABCDE1234F"
+              />
+            </div>
+
+            <div className="field">
+              <label className="field-label" htmlFor="member-dob">Date of birth</label>
+              <input
+                id="member-dob"
+                type="date"
+                value={form.date_of_birth ?? ''}
+                onChange={(event) => updateForm('date_of_birth', event.target.value)}
               />
             </div>
 
@@ -292,6 +467,16 @@ export default function MembersPage({ apiBaseUrl, accessToken, branchId, pushNot
                 Keep this useful for the front desk and trainers who need a real fallback contact.
               </div>
             </div>
+
+            <div className="field">
+              <label className="field-label" htmlFor="member-notes">Notes</label>
+              <textarea
+                id="member-notes"
+                value={form.notes ?? ''}
+                onChange={(event) => updateForm('notes', event.target.value)}
+                placeholder="Initial joining notes"
+              />
+            </div>
           </div>
 
           <div className="drawer-footer">
@@ -299,6 +484,137 @@ export default function MembersPage({ apiBaseUrl, accessToken, branchId, pushNot
               {submitting ? 'Creating...' : 'Create member'}
             </button>
             <button className="btn btn-ghost" type="button" onClick={() => setDrawerOpen(false)}>
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div className={`drawer-overlay ${editDrawerOpen ? 'open' : ''}`} onClick={() => setEditDrawerOpen(false)} />
+      <div className={`drawer ${editDrawerOpen ? 'open' : ''}`}>
+        <div className="drawer-header">
+          <span className="drawer-title">Edit member</span>
+          <button className="btn-icon" type="button" onClick={() => setEditDrawerOpen(false)}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        <form onSubmit={handleEditSubmit} style={{ display: 'contents' }}>
+          <div className="drawer-body">
+            <div className="field">
+              <label className="field-label" htmlFor="edit-member-name">Full name</label>
+              <input
+                id="edit-member-name"
+                value={editForm.full_name}
+                onChange={(event) => updateEditForm('full_name', event.target.value)}
+                required
+              />
+            </div>
+
+            <div className="field">
+              <label className="field-label" htmlFor="edit-member-phone">Phone</label>
+              <input
+                id="edit-member-phone"
+                value={editForm.phone}
+                onChange={(event) => updateEditForm('phone', event.target.value)}
+                required
+              />
+            </div>
+
+            <div className="field">
+              <label className="field-label" htmlFor="edit-member-email">Email</label>
+              <input
+                id="edit-member-email"
+                type="email"
+                value={editForm.email}
+                onChange={(event) => updateEditForm('email', event.target.value)}
+              />
+            </div>
+
+            <div className="field">
+              <label className="field-label" htmlFor="edit-member-aadhaar">Aadhaar number</label>
+              <input
+                id="edit-member-aadhaar"
+                value={editForm.aadhaar_no}
+                onChange={(event) => updateEditForm('aadhaar_no', event.target.value)}
+              />
+            </div>
+
+            <div className="field">
+              <label className="field-label" htmlFor="edit-member-pan">PAN number</label>
+              <input
+                id="edit-member-pan"
+                value={editForm.pan_no}
+                onChange={(event) => updateEditForm('pan_no', event.target.value)}
+              />
+            </div>
+
+            <div className="field">
+              <label className="field-label" htmlFor="edit-member-dob">Date of birth</label>
+              <input
+                id="edit-member-dob"
+                type="date"
+                value={editForm.date_of_birth}
+                onChange={(event) => updateEditForm('date_of_birth', event.target.value)}
+              />
+            </div>
+
+            <div className="field">
+              <label className="field-label" htmlFor="edit-member-status">Status</label>
+              <select
+                id="edit-member-status"
+                value={editForm.status}
+                onChange={(event) => updateEditForm('status', event.target.value)}
+              >
+                {['active', 'inactive', 'terminated', 'blacklisted', 'paused', 'expired'].map((status) => (
+                  <option key={status} value={status}>
+                    {formatRole(status)}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="field">
+              <label className="field-label" htmlFor="edit-member-gender">Gender</label>
+              <select
+                id="edit-member-gender"
+                value={editForm.gender}
+                onChange={(event) => updateEditForm('gender', event.target.value)}
+              >
+                <option value="">Prefer not to say</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+
+            <div className="field">
+              <label className="field-label" htmlFor="edit-member-emergency">Emergency contact</label>
+              <input
+                id="edit-member-emergency"
+                value={editForm.emergency_contact}
+                onChange={(event) => updateEditForm('emergency_contact', event.target.value)}
+              />
+            </div>
+
+            <div className="field">
+              <label className="field-label" htmlFor="edit-member-notes">Notes</label>
+              <textarea
+                id="edit-member-notes"
+                value={editForm.notes}
+                onChange={(event) => updateEditForm('notes', event.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="drawer-footer">
+            <button className="btn btn-primary" type="submit" disabled={editSubmitting} style={{ flex: 1 }}>
+              {editSubmitting ? 'Saving...' : 'Save changes'}
+            </button>
+            <button className="btn btn-ghost" type="button" onClick={() => setEditDrawerOpen(false)}>
               Cancel
             </button>
           </div>

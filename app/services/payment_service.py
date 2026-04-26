@@ -7,9 +7,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import func
 from sqlmodel import select
 
-from app.models import MemberSubscription, Payment
+from app.models import Invoice, MemberSubscription, Payment
 from app.schemas.payment import PaymentCreate
 from app.core.enums import SubscriptionStatusEnum
+from app.services.invoice_service import InvoiceService
 
 
 class PaymentService:
@@ -40,13 +41,39 @@ class PaymentService:
         result = await self.session.execute(statement)
         return result.scalars().first()
 
+    async def _resolve_invoice(
+        self,
+        branch_id: UUID,
+        member_id: UUID,
+        invoice_id: Optional[UUID],
+    ) -> Optional[Invoice]:
+        if invoice_id:
+            invoice = await self.session.get(Invoice, invoice_id)
+            if invoice and invoice.branch_id == branch_id and invoice.member_id == member_id:
+                return invoice
+            return None
+
+        statement = (
+            select(Invoice)
+            .where(Invoice.branch_id == branch_id)
+            .where(Invoice.member_id == member_id)
+            .where(Invoice.amount_due > 0)
+            .order_by(Invoice.due_date.asc(), Invoice.created_at.asc())
+            .limit(1)
+        )
+        result = await self.session.execute(statement)
+        return result.scalars().first()
+
     async def record_payment(self, branch_id: UUID, data: PaymentCreate, staff_id: UUID) -> Payment:
         """Record a payment and update subscription amounts."""
         subscription = await self._resolve_subscription(branch_id, data.member_id, data.subscription_id)
+        invoice = await self._resolve_invoice(branch_id, data.member_id, data.invoice_id)
         payment_data = data.dict(exclude_unset=True)
 
         if subscription:
             payment_data["subscription_id"] = subscription.id
+        if invoice:
+            payment_data["invoice_id"] = invoice.id
 
         payment = Payment(
             branch_id=branch_id,
@@ -61,6 +88,10 @@ class PaymentService:
             subscription.amount_paid = min(subscription.total_amount, updated_paid)
             subscription.amount_due = max(Decimal("0.00"), subscription.total_amount - updated_paid)
             self.session.add(subscription)
+
+        if invoice:
+            invoice_service = InvoiceService(self.session)
+            await invoice_service.apply_payment(invoice, data.amount)
 
         await self.session.commit()
         await self.session.refresh(payment)

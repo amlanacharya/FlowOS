@@ -21,12 +21,14 @@ class Member(SQLModel, table=True):
     full_name: str = Field(max_length=255)
     phone: str = Field(max_length=20, index=True)
     email: Optional[str] = Field(default=None, max_length=255)
+    aadhaar_no: Optional[str] = Field(default=None, max_length=20, index=True)
+    pan_no: Optional[str] = Field(default=None, max_length=20, index=True)
     date_of_birth: Optional[date] = None
     gender: Optional[str] = Field(default=None, max_length=20)
     emergency_contact: Optional[str] = Field(default=None, max_length=255)
     member_code: str = Field(max_length=50, unique=True, index=True)
     status: MemberStatusEnum = Field(
-        default=MemberStatusEnum.INACTIVE,
+        default=MemberStatusEnum.ACTIVE,
         sa_column=Column(Enum(MemberStatusEnum, native_enum=False), nullable=False)
     )
     joined_at: date = Field(default_factory=date.today)

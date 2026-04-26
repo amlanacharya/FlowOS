@@ -1,14 +1,15 @@
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
 
 from app.core.enums import MemberStatusEnum, RoleEnum
 from app.core.exceptions import ResourceNotFoundException
 from app.database import get_session
-from app.deps import get_branch_scope, require_roles
-from app.models import Member
+from app.deps import get_branch_scope, get_current_user, require_roles
+from app.models import Member, Staff, User
 from app.schemas.member import MemberCreate, MemberDetailResponse, MemberResponse, MemberUpdate
 from app.services.member_service import MemberService
 
@@ -20,10 +21,19 @@ async def create_member(
     member: MemberCreate,
     claims: dict = Depends(require_roles(RoleEnum.FRONT_DESK, RoleEnum.BRANCH_MANAGER, RoleEnum.OWNER)),
     branch_id: UUID = Depends(get_branch_scope),
+    user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> MemberResponse:
+    staff_result = await session.execute(select(Staff).where(Staff.user_id == user.id))
+    staff = staff_result.scalars().first()
+    if not staff:
+        raise ResourceNotFoundException("Staff profile not found")
+
     service = MemberService(session)
-    return await service.create_member(branch_id, member)
+    try:
+        return await service.create_member(branch_id, member, staff.id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.get("", response_model=List[MemberResponse])

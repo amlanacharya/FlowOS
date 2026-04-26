@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from typing import List, Optional
 from uuid import UUID
 
@@ -6,8 +6,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from app.core.enums import MemberStatusEnum
-from app.models import Member
+from app.core.enums import InvoiceTypeEnum
+from app.models import Member, MemberSubscription, MembershipPlan
 from app.schemas.member import MemberCreate, MemberUpdate
+from app.services.invoice_service import InvoiceService
 
 
 class MemberService:
@@ -37,13 +39,55 @@ class MemberService:
 
         return f"{branch_prefix}-{count:04d}"
 
-    async def create_member(self, branch_id: UUID, data: MemberCreate) -> Member:
+    async def create_member(self, branch_id: UUID, data: MemberCreate, staff_id: UUID) -> Member:
+        plan = await self.session.get(MembershipPlan, data.plan_id)
+        if not plan:
+            raise ValueError("Plan not found")
+
+        if plan.branch_id != branch_id:
+            raise ValueError("Plan does not belong to this branch")
+
         member = Member(
             branch_id=branch_id,
             member_code=await self.generate_member_code(branch_id),
-            **data.dict(),
+            full_name=data.full_name,
+            phone=data.phone,
+            email=data.email,
+            aadhaar_no=data.aadhaar_no,
+            pan_no=data.pan_no,
+            date_of_birth=data.date_of_birth,
+            gender=data.gender,
+            emergency_contact=data.emergency_contact,
+            notes=data.notes,
+            status=data.status or MemberStatusEnum.ACTIVE,
         )
         self.session.add(member)
+        await self.session.flush()
+
+        start_date = date.today()
+        sub = MemberSubscription(
+            member_id=member.id,
+            branch_id=branch_id,
+            plan_id=plan.id,
+            start_date=start_date,
+            end_date=start_date + timedelta(days=plan.duration_days),
+            total_amount=plan.price,
+            amount_due=plan.price,
+            created_by_staff_id=staff_id,
+        )
+        self.session.add(sub)
+        await self.session.flush()
+
+        invoice_service = InvoiceService(self.session)
+        await invoice_service.create_subscription_invoice(
+            branch_id=branch_id,
+            member_id=member.id,
+            subscription_id=sub.id,
+            plan=plan,
+            created_by_staff_id=staff_id,
+            invoice_type=InvoiceTypeEnum.NEW_JOIN,
+        )
+
         await self.session.commit()
         await self.session.refresh(member)
         return member

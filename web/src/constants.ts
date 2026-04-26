@@ -12,6 +12,8 @@ export const Page = {
   Dashboard: 'dashboard',
   Leads: 'leads',
   Members: 'members',
+  Invoices: 'invoices',
+  MembershipTracking: 'membership-tracking',
   Payments: 'payments',
   StaffAttendance: 'staff-attendance',
   Engagement: 'engagement',

@@ -5,9 +5,9 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
-from app.core.enums import SubscriptionStatusEnum
-from app.models import MembershipPlan, MemberSubscription
-from app.schemas.member_subscription import SubscriptionCreate
+from app.core.enums import InvoiceTypeEnum, SubscriptionStatusEnum
+from app.models import MembershipPlan, MemberSubscription, SubscriptionPauseHistory
+from app.services.invoice_service import InvoiceService
 
 
 class SubscriptionService:
@@ -21,6 +21,8 @@ class SubscriptionService:
         plan_id: UUID,
         staff_id: UUID,
         start_date: Optional[date] = None,
+        create_invoice: bool = True,
+        invoice_type: InvoiceTypeEnum = InvoiceTypeEnum.NEW_JOIN,
     ) -> MemberSubscription:
         plan = await self.session.get(MembershipPlan, plan_id)
         if not plan:
@@ -40,6 +42,19 @@ class SubscriptionService:
             created_by_staff_id=staff_id,
         )
         self.session.add(sub)
+        await self.session.flush()
+
+        if create_invoice:
+            invoice_service = InvoiceService(self.session)
+            await invoice_service.create_subscription_invoice(
+                branch_id=branch_id,
+                member_id=member_id,
+                subscription_id=sub.id,
+                plan=plan,
+                created_by_staff_id=staff_id,
+                invoice_type=invoice_type,
+            )
+
         await self.session.commit()
         await self.session.refresh(sub)
         return sub
@@ -63,45 +78,101 @@ class SubscriptionService:
         return result.scalars().all()
 
     async def pause_subscription(
-        self, sub_id: UUID, freeze_days: int = 30
+        self,
+        sub_id: UUID,
+        staff_id: UUID,
+        pause_date: date,
+        reason: Optional[str] = None,
     ) -> Optional[MemberSubscription]:
         sub = await self.get_subscription(sub_id)
         if not sub:
             return None
+
+        open_pause_statement = (
+            select(SubscriptionPauseHistory)
+            .where(SubscriptionPauseHistory.subscription_id == sub.id)
+            .where(SubscriptionPauseHistory.resume_date.is_(None))
+            .order_by(SubscriptionPauseHistory.created_at.desc())
+            .limit(1)
+        )
+        open_pause_result = await self.session.execute(open_pause_statement)
+        if open_pause_result.scalars().first():
+            raise ValueError("Subscription already paused and waiting for resume date")
+
         sub.status = SubscriptionStatusEnum.PAUSED
-        sub.freeze_start = date.today()
-        sub.freeze_days_used += freeze_days
-        sub.end_date = sub.end_date + timedelta(days=freeze_days)
+        sub.freeze_start = pause_date
+        sub.last_pause_date = pause_date
+
+        pause_event = SubscriptionPauseHistory(
+            branch_id=sub.branch_id,
+            member_id=sub.member_id,
+            subscription_id=sub.id,
+            pause_date=pause_date,
+            reason=reason,
+            created_by_staff_id=staff_id,
+        )
+        self.session.add(pause_event)
         self.session.add(sub)
         await self.session.commit()
         await self.session.refresh(sub)
         return sub
 
-    async def resume_subscription(self, sub_id: UUID) -> Optional[MemberSubscription]:
+    async def resume_subscription(
+        self, sub_id: UUID, resume_date: date
+    ) -> Optional[MemberSubscription]:
         sub = await self.get_subscription(sub_id)
         if not sub:
             return None
+
+        open_pause_statement = (
+            select(SubscriptionPauseHistory)
+            .where(SubscriptionPauseHistory.subscription_id == sub.id)
+            .where(SubscriptionPauseHistory.resume_date.is_(None))
+            .order_by(SubscriptionPauseHistory.created_at.desc())
+            .limit(1)
+        )
+        open_pause_result = await self.session.execute(open_pause_statement)
+        pause_event = open_pause_result.scalars().first()
+        if not pause_event:
+            raise ValueError("No active pause entry found for this subscription")
+        if resume_date < pause_event.pause_date:
+            raise ValueError("Resume date cannot be before pause date")
+
+        pause_days = (resume_date - pause_event.pause_date).days
+        pause_event.resume_date = resume_date
+        pause_event.pause_days = max(0, pause_days)
+        pause_event.updated_at = datetime.utcnow()
+
+        extension_days = max(0, pause_days)
+        if extension_days > 0:
+            sub.end_date = sub.end_date + timedelta(days=extension_days)
+        sub.total_pause_days += extension_days
+        sub.freeze_days_used += extension_days
         sub.status = SubscriptionStatusEnum.ACTIVE
         sub.freeze_start = None
+        sub.last_resume_date = resume_date
+        sub.updated_at = datetime.utcnow()
+        self.session.add(pause_event)
         self.session.add(sub)
         await self.session.commit()
         await self.session.refresh(sub)
         return sub
 
     async def renew_subscription(
-        self, sub_id: UUID, staff_id: UUID
+        self, sub_id: UUID, staff_id: UUID, plan_id: Optional[UUID] = None
     ) -> Optional[MemberSubscription]:
         old_sub = await self.get_subscription(sub_id)
         if not old_sub:
             return None
-        plan = await self.session.get(MembershipPlan, old_sub.plan_id)
+        selected_plan_id = plan_id or old_sub.plan_id
+        plan = await self.session.get(MembershipPlan, selected_plan_id)
         if not plan:
             raise ValueError("Plan not found")
 
         new_sub = MemberSubscription(
             member_id=old_sub.member_id,
             branch_id=old_sub.branch_id,
-            plan_id=old_sub.plan_id,
+            plan_id=selected_plan_id,
             start_date=old_sub.end_date + timedelta(days=1),
             end_date=old_sub.end_date + timedelta(days=plan.duration_days + 1),
             total_amount=plan.price,
@@ -109,6 +180,18 @@ class SubscriptionService:
             created_by_staff_id=staff_id,
         )
         self.session.add(new_sub)
+        await self.session.flush()
+
+        invoice_service = InvoiceService(self.session)
+        await invoice_service.create_subscription_invoice(
+            branch_id=old_sub.branch_id,
+            member_id=old_sub.member_id,
+            subscription_id=new_sub.id,
+            plan=plan,
+            created_by_staff_id=staff_id,
+            invoice_type=InvoiceTypeEnum.RENEWAL,
+        )
+
         await self.session.commit()
         await self.session.refresh(new_sub)
         return new_sub

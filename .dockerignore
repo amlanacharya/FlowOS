@@ -1,0 +1,12 @@
+.git
+.gitignore
+.claude
+.tmp
+venv
+web/node_modules
+web/dist
+__pycache__
+*.pyc
+.pytest_cache
+.mypy_cache
+node_modules

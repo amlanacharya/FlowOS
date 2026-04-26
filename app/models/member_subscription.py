@@ -32,6 +32,9 @@ class MemberSubscription(SQLModel, table=True):
     amount_due: Decimal = Field(sa_column=Column(Numeric(10, 2)))
     freeze_days_used: int = Field(default=0)
     freeze_start: Optional[date] = None
+    total_pause_days: int = Field(default=0)
+    last_pause_date: Optional[date] = None
+    last_resume_date: Optional[date] = None
     notes: Optional[str] = None
     created_by_staff_id: UUID = Field(foreign_key="staff.id")
     created_at: datetime = Field(default_factory=datetime.utcnow)

@@ -1,7 +1,13 @@
 import type {
   FeedbackSummary,
+  InvoiceItem,
   FeedbackList,
+  MembershipTrackingItem,
+  PauseHistoryItem,
+  PlanOption,
   QrCheckinResponse,
+  ReminderChecklistItem,
+  SubscriptionAdjustmentItem,
   ShiftComparison,
   StaffAttendance,
   StaffAttendanceList,
@@ -272,5 +278,124 @@ export async function markTrainerAttendance(
     method: 'POST',
     token,
     query: { branch_id: branchId, attended },
+  })
+}
+
+export async function listMembershipTracking(
+  base: string,
+  token: string,
+  branchId: string,
+): Promise<MembershipTrackingItem[]> {
+  return apiFetch(base, '/api/v1/membership-tracking', {
+    token,
+    query: { branch_id: branchId },
+  })
+}
+
+export async function listPauseHistory(
+  base: string,
+  token: string,
+  subscriptionId: string,
+): Promise<PauseHistoryItem[]> {
+  return apiFetch(base, `/api/v1/membership-tracking/${subscriptionId}/pause-history`, {
+    token,
+  })
+}
+
+export async function pauseSubscription(
+  base: string,
+  token: string,
+  subscriptionId: string,
+  pauseDate: string,
+  reason?: string,
+) {
+  return apiFetch(base, `/api/v1/subscriptions/${subscriptionId}/pause`, {
+    method: 'POST',
+    token,
+    body: { pause_date: pauseDate, reason },
+  })
+}
+
+export async function resumeSubscription(
+  base: string,
+  token: string,
+  subscriptionId: string,
+  resumeDate: string,
+) {
+  return apiFetch(base, `/api/v1/subscriptions/${subscriptionId}/resume`, {
+    method: 'POST',
+    token,
+    body: { resume_date: resumeDate },
+  })
+}
+
+export async function renewSubscription(
+  base: string,
+  token: string,
+  subscriptionId: string,
+  planId?: string,
+) {
+  return apiFetch(base, `/api/v1/subscriptions/${subscriptionId}/renew`, {
+    method: 'POST',
+    token,
+    query: { plan_id: planId || undefined },
+  })
+}
+
+export async function listPlans(
+  base: string,
+  token: string,
+  branchId: string,
+): Promise<PlanOption[]> {
+  return apiFetch(base, '/api/v1/plans', {
+    token,
+    query: { branch_id: branchId },
+  })
+}
+
+export async function listReminderChecklist(
+  base: string,
+  token: string,
+  branchId: string,
+): Promise<ReminderChecklistItem[]> {
+  return apiFetch(base, '/api/v1/reminders/checklist', {
+    token,
+    query: { branch_id: branchId },
+  })
+}
+
+export async function listInvoices(
+  base: string,
+  token: string,
+  branchId: string,
+  params: { member_id?: string; invoice_no?: string; status?: string; only_outstanding?: boolean } = {},
+): Promise<InvoiceItem[]> {
+  return apiFetch(base, '/api/v1/invoices', {
+    token,
+    query: { branch_id: branchId, ...params },
+  })
+}
+
+export async function listSubscriptionAdjustments(
+  base: string,
+  token: string,
+  subscriptionId: string,
+): Promise<SubscriptionAdjustmentItem[]> {
+  return apiFetch(base, `/api/v1/membership-tracking/${subscriptionId}/adjustments`, {
+    token,
+  })
+}
+
+export async function createSubscriptionAdjustment(
+  base: string,
+  token: string,
+  subscriptionId: string,
+  daysDelta: number,
+  reason?: string,
+): Promise<SubscriptionAdjustmentItem> {
+  return apiFetch(base, `/api/v1/membership-tracking/${subscriptionId}/adjustments`, {
+    method: 'POST',
+    token,
+    body: { days_delta: daysDelta, reason },
   })
 }

@@ -24,7 +24,8 @@ config.set_main_option("sqlalchemy.url", database_url)
 from app.models import (
     Organization, Branch, User, Staff, Lead, Member, MembershipPlan,
     MemberSubscription, Payment, ClassType, ClassSession, ClassEnrollment,
-    Attendance, NotificationLog, RefreshToken
+    Attendance, NotificationLog, RefreshToken, StaffAttendance, StaffShift,
+    MemberFeedback, WorkoutLog, Invoice, SubscriptionPauseHistory, SubscriptionAdjustment
 )
 target_metadata = SQLModel.metadata
 
